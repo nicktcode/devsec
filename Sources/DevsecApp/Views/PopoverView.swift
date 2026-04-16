@@ -1,6 +1,16 @@
 import SwiftUI
 import DevsecCore
 
+// MARK: - Design Constants
+
+private enum DS {
+    static let bg        = Color(red: 0.11, green: 0.11, blue: 0.118)    // #1C1C1E
+    static let cardBg    = Color(red: 0.173, green: 0.173, blue: 0.18)   // #2C2C2E
+    static let subtle    = Color.white.opacity(0.06)
+    static let radius: CGFloat = 10
+    static let cardPad: CGFloat = 12
+}
+
 // MARK: - PopoverView
 
 struct PopoverView: View {
@@ -9,27 +19,15 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
             headerSection
-
-            Divider()
-
-            // Module summary
-            if let result = appState.lastScanResult {
-                moduleSummarySection(result: result)
-                Divider()
-            }
-
-            // Recent findings
-            if let result = appState.lastScanResult, !result.findings.isEmpty {
-                recentFindingsSection(result: result)
-                Divider()
-            }
-
-            // Actions
-            actionsSection
+            summaryCard
+            moduleList
+            recentFindings
+            footerSection
         }
-        .frame(width: 340)
+        .frame(width: 320)
+        .background(DS.bg)
+        .preferredColorScheme(.dark)
         .sheet(isPresented: $showingFullReport) {
             FullReportView(appState: appState)
         }
@@ -39,23 +37,265 @@ struct PopoverView: View {
 
     private var headerSection: some View {
         HStack(spacing: 8) {
+            Image(systemName: "shield.checkered")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(statusColor)
+
             Text("devsec")
-                .font(.headline)
-                .fontWeight(.semibold)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
 
             Spacer()
 
-            Circle()
-                .fill(statusColor)
-                .frame(width: 8, height: 8)
+            statusPill
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
+    }
+
+    private var statusPill: some View {
+        HStack(spacing: 5) {
+            if appState.overallStatus == .scanning {
+                ProgressView()
+                    .scaleEffect(0.5)
+                    .frame(width: 10, height: 10)
+            } else {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 6, height: 6)
+            }
 
             Text(statusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(statusColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(statusColor.opacity(0.12))
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Summary Card
+
+    private var summaryCard: some View {
+        VStack(spacing: 8) {
+            if let result = appState.lastScanResult {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(result.findings.count)")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text(result.findings.count == 1 ? "finding" : "findings")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.5))
+
+                    Spacer()
+
+                    if result.newCount > 0 {
+                        Text("\(result.newCount) new")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.blue.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
+
+                // Status bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.08))
+                            .frame(height: 4)
+
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(statusColor)
+                            .frame(
+                                width: result.findings.isEmpty
+                                    ? geo.size.width
+                                    : max(geo.size.width * 0.15, 20),
+                                height: 4
+                            )
+                    }
+                }
+                .frame(height: 4)
+
+                // Timing info
+                HStack {
+                    if let lastScanTime = appState.lastScanTime {
+                        Text("Last scan: \(timeAgo(lastScanTime))")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.white.opacity(0.4))
+                    }
+                    Spacer()
+                    Text(appState.timeUntilNextScan)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.white.opacity(0.4))
+                }
+            } else {
+                HStack {
+                    Text("No scan results yet")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                    Spacer()
+                }
+            }
+        }
+        .padding(DS.cardPad)
+        .background(DS.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: DS.radius))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Module List
+
+    private var moduleList: some View {
+        Group {
+            if let result = appState.lastScanResult {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("MODULES")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.35))
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 4)
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(result.results.enumerated()), id: \.element.module) { index, scanResult in
+                            ModuleSummaryRow(result: scanResult)
+
+                            if index < result.results.count - 1 {
+                                Divider()
+                                    .background(Color.white.opacity(0.06))
+                                    .padding(.horizontal, 10)
+                            }
+                        }
+                    }
+                    .background(DS.cardBg)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.radius))
+                    .padding(.horizontal, 12)
+                }
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    // MARK: - Recent Findings
+
+    private var recentFindings: some View {
+        Group {
+            if let result = appState.lastScanResult, !result.findings.isEmpty {
+                let topFindings = Array(result.findings.prefix(3))
+                let remaining = result.findings.count - topFindings.count
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("RECENT FINDINGS")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.35))
+
+                        Spacer()
+
+                        if remaining > 0 {
+                            Button {
+                                showingFullReport = true
+                            } label: {
+                                Text("+\(remaining) more")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(Color.white.opacity(0.35))
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+
+                    VStack(spacing: 4) {
+                        ForEach(topFindings) { finding in
+                            FindingRow(finding: finding) {
+                                appState.whitelistFinding(finding)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    // MARK: - Footer
+
+    private var footerSection: some View {
+        VStack(spacing: 8) {
+            // Scan button
+            Button {
+                Task { await appState.runScan() }
+            } label: {
+                HStack(spacing: 6) {
+                    if appState.isScanning {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .frame(width: 12, height: 12)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    Text(appState.isScanning ? "Scanning..." : "Scan Now")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(statusColor.opacity(appState.isScanning ? 0.15 : 0.2))
+                .foregroundStyle(appState.isScanning ? statusColor.opacity(0.6) : statusColor)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isScanning)
+
+            // Settings / Report / Quit row
+            HStack {
+                Button {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                } label: {
+                    Text("Settings")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.white.opacity(0.4))
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                if appState.lastScanResult != nil {
+                    Button {
+                        showingFullReport = true
+                    } label: {
+                        Text("Full Report")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.white.opacity(0.4))
+                    }
+                    .buttonStyle(.borderless)
+
+                    Spacer()
+                }
+
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Text("Quit")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.white.opacity(0.3))
+                }
+                .buttonStyle(.borderless)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .background(DS.subtle)
     }
+
+    // MARK: - Status Helpers
 
     private var statusColor: Color {
         switch appState.overallStatus {
@@ -69,126 +309,13 @@ struct PopoverView: View {
 
     private var statusText: String {
         switch appState.overallStatus {
-        case .clean:    return "All clear"
+        case .clean:    return "Secure"
         case .warnings: return "Warnings"
         case .critical: return "Critical"
         case .scanning: return "Scanning..."
         case .idle:     return "Idle"
         }
     }
-
-    // MARK: - Module Summary
-
-    private func moduleSummarySection(result: FullScanResult) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(result.results, id: \.module) { scanResult in
-                ModuleSummaryRow(result: scanResult)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 1)
-            }
-
-            HStack {
-                if let lastScanTime = appState.lastScanTime {
-                    Text("Last scan: \(timeAgo(lastScanTime))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(appState.timeUntilNextScan)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 4)
-            .padding(.bottom, 6)
-        }
-        .padding(.top, 6)
-    }
-
-    // MARK: - Recent Findings
-
-    private func recentFindingsSection(result: FullScanResult) -> some View {
-        let topFindings = Array(result.findings.prefix(5))
-        let remaining = result.findings.count - topFindings.count
-
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("Recent Findings")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-
-            ForEach(topFindings) { finding in
-                FindingRow(finding: finding) {
-                    appState.whitelistFinding(finding)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 2)
-            }
-
-            if remaining > 0 {
-                Text("+ \(remaining) more")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 4)
-            }
-
-            Spacer(minLength: 6)
-        }
-    }
-
-    // MARK: - Actions
-
-    private var actionsSection: some View {
-        VStack(spacing: 4) {
-            Button {
-                Task { await appState.runScan() }
-            } label: {
-                HStack {
-                    if appState.isScanning {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(appState.isScanning ? "Scanning..." : "Scan Now")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .disabled(appState.isScanning)
-            .buttonStyle(.borderedProminent)
-
-            if appState.lastScanResult != nil {
-                Button("View Full Report") {
-                    showingFullReport = true
-                }
-                .frame(maxWidth: .infinity)
-                .buttonStyle(.bordered)
-            }
-
-            HStack {
-                Button("Settings...") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-
-                Spacer()
-
-                Button("Quit devsec") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-        .padding(12)
-    }
-
-    // MARK: - Helpers
 
     private func timeAgo(_ date: Date) -> String {
         let elapsed = -date.timeIntervalSinceNow

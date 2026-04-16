@@ -8,36 +8,67 @@ struct FindingRow: View {
     let onWhitelist: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                SeverityBadge(severity: finding.severity)
+        HStack(spacing: 0) {
+            // Severity accent bar
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(severityColor)
+                .frame(width: 3)
+                .padding(.vertical, 2)
 
-                if finding.isNew {
-                    NewBadge()
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(finding.severity.rawValue.uppercased())
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(severityColor)
+
+                    if finding.isNew {
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 5, height: 5)
+                    }
+
+                    Spacer()
+
+                    Button(action: onWhitelist) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.white.opacity(0.35))
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Whitelist this finding")
                 }
 
-                Spacer()
+                if let path = finding.filePath {
+                    Text(abbreviatedPath(path))
+                        .font(.system(size: 10, design: .monospaced))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(Color.white.opacity(0.5))
+                }
 
-                Button("Whitelist", action: onWhitelist)
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(finding.description)
+                    .font(.system(size: 11))
+                    .lineLimit(2)
+                    .foregroundStyle(Color.white.opacity(0.7))
             }
-
-            if let path = finding.filePath {
-                Text(abbreviatedPath(path))
-                    .font(.system(.caption, design: .monospaced))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(finding.description)
-                .font(.caption)
-                .lineLimit(2)
-                .foregroundStyle(.primary)
+            .padding(.leading, 8)
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    // MARK: - Helpers
+
+    private var severityColor: Color {
+        switch finding.severity {
+        case .critical: return .red
+        case .high:     return .orange
+        case .medium:   return .yellow
+        case .low:      return .blue
+        case .info:     return .gray
+        }
     }
 
     private func abbreviatedPath(_ path: String) -> String {
@@ -46,55 +77,5 @@ struct FindingRow: View {
             return "~" + path.dropFirst(home.count)
         }
         return path
-    }
-}
-
-// MARK: - SeverityBadge
-
-private struct SeverityBadge: View {
-    let severity: Severity
-
-    var body: some View {
-        Text(severity.rawValue.uppercased())
-            .font(.system(size: 9, weight: .semibold))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(backgroundColor)
-            .foregroundStyle(foregroundColor)
-            .cornerRadius(3)
-    }
-
-    private var backgroundColor: Color {
-        switch severity {
-        case .critical: return Color.red.opacity(0.2)
-        case .high:     return Color.orange.opacity(0.2)
-        case .medium:   return Color.yellow.opacity(0.2)
-        case .low:      return Color.blue.opacity(0.2)
-        case .info:     return Color.gray.opacity(0.2)
-        }
-    }
-
-    private var foregroundColor: Color {
-        switch severity {
-        case .critical: return .red
-        case .high:     return .orange
-        case .medium:   return Color(red: 0.6, green: 0.5, blue: 0.0)
-        case .low:      return .blue
-        case .info:     return .gray
-        }
-    }
-}
-
-// MARK: - NewBadge
-
-private struct NewBadge: View {
-    var body: some View {
-        Text("NEW")
-            .font(.system(size: 9, weight: .semibold))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(Color.blue.opacity(0.2))
-            .foregroundStyle(.blue)
-            .cornerRadius(3)
     }
 }
