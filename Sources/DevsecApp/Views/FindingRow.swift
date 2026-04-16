@@ -7,24 +7,23 @@ struct FindingRow: View {
     let finding: Finding
     let onWhitelist: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         HStack(spacing: 0) {
-            // Severity accent bar
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(severityColor)
-                .frame(width: 3)
-                .padding(.vertical, 2)
-
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(finding.severity.rawValue.uppercased())
                         .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(severityColor)
+                        .foregroundColor(severityColor)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(severityColor.opacity(0.12)))
 
                     if finding.isNew {
                         Circle()
                             .fill(Color.blue)
-                            .frame(width: 5, height: 5)
+                            .frame(width: 6, height: 6)
                     }
 
                     Spacer()
@@ -32,9 +31,10 @@ struct FindingRow: View {
                     Button(action: onWhitelist) {
                         Image(systemName: "eye.slash")
                             .font(.system(size: 10))
-                            .foregroundStyle(Color.white.opacity(0.35))
+                            .foregroundColor(.secondary.opacity(0.6))
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
+                    .onHover { hovering in isHovered = hovering }
                     .help("Whitelist this finding")
                 }
 
@@ -43,20 +43,34 @@ struct FindingRow: View {
                         .font(.system(size: 10, design: .monospaced))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .foregroundStyle(Color.white.opacity(0.5))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
 
                 Text(finding.description)
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .lineLimit(2)
-                    .foregroundStyle(Color.white.opacity(0.7))
+                    .foregroundColor(.secondary)
             }
             .padding(.leading, 8)
+            .padding(.trailing, 4)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.clear)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(severityColor)
+                        .frame(width: 3)
+                        .padding(.vertical, 4)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        )
     }
 
     // MARK: - Helpers

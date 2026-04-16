@@ -1,14 +1,52 @@
 import SwiftUI
 import DevsecCore
 
-// MARK: - Design Constants
+// MARK: - VisualEffectBackground
 
-private enum DS {
-    static let bg        = Color(red: 0.11, green: 0.11, blue: 0.118)    // #1C1C1E
-    static let cardBg    = Color(red: 0.173, green: 0.173, blue: 0.18)   // #2C2C2E
-    static let subtle    = Color.white.opacity(0.06)
-    static let radius: CGFloat = 10
-    static let cardPad: CGFloat = 12
+struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let container = NSView()
+        let effectView = NSVisualEffectView()
+        effectView.material = .hudWindow
+        effectView.blendingMode = .behindWindow
+        effectView.state = .active
+        effectView.isEmphasized = true
+        effectView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(effectView)
+
+        let tintView = NSView()
+        tintView.wantsLayer = true
+        if NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+            tintView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.25).cgColor
+        } else {
+            tintView.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.4).cgColor
+        }
+        tintView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(tintView)
+
+        NSLayoutConstraint.activate([
+            effectView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            effectView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            effectView.topAnchor.constraint(equalTo: container.topAnchor),
+            effectView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            tintView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            tintView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            tintView.topAnchor.constraint(equalTo: container.topAnchor),
+            tintView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        return container
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let tintView = nsView.subviews.last {
+            tintView.wantsLayer = true
+            if NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                tintView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.25).cgColor
+            } else {
+                tintView.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.4).cgColor
+            }
+        }
+    }
 }
 
 // MARK: - PopoverView
@@ -25,9 +63,9 @@ struct PopoverView: View {
             recentFindings
             footerSection
         }
-        .frame(width: 320)
-        .background(DS.bg)
-        .preferredColorScheme(.dark)
+        .frame(width: 300)
+        .background(VisualEffectBackground())
+        .padding(.bottom, 8)
         .sheet(isPresented: $showingFullReport) {
             FullReportView(appState: appState)
         }
@@ -37,13 +75,9 @@ struct PopoverView: View {
 
     private var headerSection: some View {
         HStack(spacing: 8) {
-            Image(systemName: "shield.checkered")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(statusColor)
-
             Text("devsec")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundColor(.primary)
 
             Spacer()
 
@@ -67,87 +101,127 @@ struct PopoverView: View {
             }
 
             Text(statusText)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(statusColor)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(statusColor)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(statusColor.opacity(0.12))
-        .clipShape(Capsule())
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(statusColor.opacity(0.12)))
     }
 
     // MARK: - Summary Card
 
     private var summaryCard: some View {
         VStack(spacing: 8) {
-            if let result = appState.lastScanResult {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(result.findings.count)")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-
-                    Text(result.findings.count == 1 ? "finding" : "findings")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.5))
-
-                    Spacer()
-
-                    if result.newCount > 0 {
-                        Text("\(result.newCount) new")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.blue)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.blue.opacity(0.15))
-                            .clipShape(Capsule())
-                    }
-                }
-
-                // Status bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.08))
-                            .frame(height: 4)
-
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(statusColor)
-                            .frame(
-                                width: result.findings.isEmpty
-                                    ? geo.size.width
-                                    : max(geo.size.width * 0.15, 20),
-                                height: 4
-                            )
-                    }
-                }
-                .frame(height: 4)
-
-                // Timing info
-                HStack {
-                    if let lastScanTime = appState.lastScanTime {
-                        Text("Last scan: \(timeAgo(lastScanTime))")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.white.opacity(0.4))
-                    }
-                    Spacer()
-                    Text(appState.timeUntilNextScan)
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.white.opacity(0.4))
-                }
+            if appState.isScanning {
+                scanningContent
+            } else if let result = appState.lastScanResult {
+                resultContent(result)
             } else {
                 HStack {
                     Text("No scan results yet")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.white.opacity(0.5))
+                        .foregroundColor(.secondary)
                     Spacer()
                 }
             }
         }
-        .padding(DS.cardPad)
-        .background(DS.cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: DS.radius))
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+        )
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
+    }
+
+    private var scanningContent: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text(appState.scanProgress)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary)
+                Spacer()
+                Text("\(appState.completedModules)/\(appState.totalModules)")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(Color.primary.opacity(0.08))
+                        .frame(height: 5)
+
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(Color.blue)
+                        .frame(
+                            width: appState.totalModules > 0
+                                ? geo.size.width * CGFloat(appState.completedModules) / CGFloat(appState.totalModules)
+                                : 0,
+                            height: 5
+                        )
+                        .animation(.easeInOut(duration: 0.6), value: appState.completedModules)
+                }
+            }
+            .frame(height: 5)
+        }
+    }
+
+    private func resultContent(_ result: FullScanResult) -> some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(result.findings.count)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                Text(result.findings.count == 1 ? "finding" : "findings")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                if result.newCount > 0 {
+                    Text("\(result.newCount) new")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.blue.opacity(0.12)))
+                }
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(Color.primary.opacity(0.08))
+                        .frame(height: 5)
+
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(statusColor)
+                        .frame(
+                            width: result.findings.isEmpty
+                                ? geo.size.width
+                                : max(geo.size.width * 0.15, 20),
+                            height: 5
+                        )
+                        .animation(.easeInOut(duration: 0.6), value: result.findings.count)
+                }
+            }
+            .frame(height: 5)
+
+            HStack {
+                if let lastScanTime = appState.lastScanTime {
+                    Text("Last scan: \(timeAgo(lastScanTime))")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                Spacer()
+                Text(appState.timeUntilNextScan)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+        }
     }
 
     // MARK: - Module List
@@ -157,8 +231,8 @@ struct PopoverView: View {
             if let result = appState.lastScanResult {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("MODULES")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.35))
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.6))
                         .padding(.horizontal, 14)
                         .padding(.bottom, 4)
 
@@ -168,13 +242,14 @@ struct PopoverView: View {
 
                             if index < result.results.count - 1 {
                                 Divider()
-                                    .background(Color.white.opacity(0.06))
-                                    .padding(.horizontal, 10)
+                                    .padding(.horizontal, 16)
                             }
                         }
                     }
-                    .background(DS.cardBg)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.radius))
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+                    )
                     .padding(.horizontal, 12)
                 }
                 .padding(.bottom, 8)
@@ -193,8 +268,8 @@ struct PopoverView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("RECENT FINDINGS")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.35))
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.secondary.opacity(0.6))
 
                         Spacer()
 
@@ -204,9 +279,9 @@ struct PopoverView: View {
                             } label: {
                                 Text("+\(remaining) more")
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(Color.white.opacity(0.35))
+                                    .foregroundColor(.secondary.opacity(0.6))
                             }
-                            .buttonStyle(.borderless)
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 14)
@@ -229,7 +304,6 @@ struct PopoverView: View {
 
     private var footerSection: some View {
         VStack(spacing: 8) {
-            // Scan button
             Button {
                 Task { await appState.runScan() }
             } label: {
@@ -247,23 +321,22 @@ struct PopoverView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 7)
-                .background(statusColor.opacity(appState.isScanning ? 0.15 : 0.2))
-                .foregroundStyle(appState.isScanning ? statusColor.opacity(0.6) : statusColor)
+                .background(Color.primary.opacity(0.08))
+                .foregroundColor(appState.isScanning ? .secondary : .primary)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .disabled(appState.isScanning)
 
-            // Settings / Report / Quit row
             HStack {
                 Button {
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 } label: {
                     Text("Settings")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color.white.opacity(0.4))
+                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
 
                 Spacer()
 
@@ -273,9 +346,9 @@ struct PopoverView: View {
                     } label: {
                         Text("Full Report")
                             .font(.system(size: 11))
-                            .foregroundStyle(Color.white.opacity(0.4))
+                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
 
                     Spacer()
                 }
@@ -285,14 +358,14 @@ struct PopoverView: View {
                 } label: {
                     Text("Quit")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color.white.opacity(0.3))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(DS.subtle)
+        .background(Color.primary.opacity(0.04))
     }
 
     // MARK: - Status Helpers

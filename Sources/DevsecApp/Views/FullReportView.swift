@@ -7,18 +7,17 @@ struct FullReportView: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
-    private let bg = Color(red: 0.11, green: 0.11, blue: 0.118)
-    private let cardBg = Color(red: 0.173, green: 0.173, blue: 0.18)
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerBar
-            Divider().background(Color.white.opacity(0.08))
+
+            Divider()
+                .padding(.horizontal, 16)
+
             contentArea
         }
         .frame(minWidth: 520, minHeight: 440)
-        .background(bg)
-        .preferredColorScheme(.dark)
+        .background(VisualEffectBackground())
     }
 
     // MARK: - Header
@@ -28,12 +27,12 @@ struct FullReportView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Security Report")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundColor(.primary)
 
                 if let result = appState.lastScanResult {
                     Text("Scanned in \(String(format: "%.1f", result.totalDuration))s")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.white.opacity(0.4))
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
             }
 
@@ -48,12 +47,12 @@ struct FullReportView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .foregroundColor(.secondary)
                     .frame(width: 24, height: 24)
-                    .background(Color.white.opacity(0.08))
+                    .background(Color.primary.opacity(0.08))
                     .clipShape(Circle())
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -61,7 +60,7 @@ struct FullReportView: View {
 
     private func summaryPills(result: FullScanResult) -> some View {
         HStack(spacing: 6) {
-            statPill(count: result.findings.count, label: "Total", color: .white.opacity(0.7))
+            statPill(count: result.findings.count, label: "Total", color: .secondary)
 
             if result.criticalCount > 0 {
                 statPill(count: result.criticalCount, label: "Critical", color: .red)
@@ -82,15 +81,14 @@ struct FullReportView: View {
         HStack(spacing: 3) {
             Text("\(count)")
                 .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(color)
+                .foregroundColor(color)
             Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(Color.white.opacity(0.4))
+                .font(.system(size: 9))
+                .foregroundColor(.secondary.opacity(0.6))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1)
+        .background(Capsule().fill(color.opacity(0.12)))
     }
 
     // MARK: - Content
@@ -113,7 +111,7 @@ struct FullReportView: View {
         ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(result.findings) { finding in
-                    FindingDetailCard(finding: finding, cardBg: cardBg) {
+                    FindingDetailCard(finding: finding) {
                         appState.whitelistFinding(finding)
                     }
                 }
@@ -127,13 +125,13 @@ struct FullReportView: View {
             Spacer()
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 36))
-                .foregroundStyle(.green.opacity(0.6))
+                .foregroundColor(.green.opacity(0.6))
             Text("All clear")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundColor(.primary)
             Text("No security findings detected.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundColor(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -144,13 +142,13 @@ struct FullReportView: View {
             Spacer()
             Image(systemName: "shield")
                 .font(.system(size: 36))
-                .foregroundStyle(Color.white.opacity(0.3))
+                .foregroundColor(.secondary.opacity(0.6))
             Text("No scan results")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundColor(.primary)
             Text("Run a scan to see your security report.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundColor(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -161,36 +159,33 @@ struct FullReportView: View {
 
 private struct FindingDetailCard: View {
     let finding: Finding
-    let cardBg: Color
     let onWhitelist: () -> Void
+
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 0) {
-            // Severity accent bar
-            RoundedRectangle(cornerRadius: 2)
-                .fill(severityColor)
-                .frame(width: 3)
-                .padding(.vertical, 4)
-
             VStack(alignment: .leading, spacing: 6) {
                 // Top row: severity + module + new indicator + whitelist
                 HStack(spacing: 6) {
                     Text(finding.severity.rawValue.uppercased())
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(severityColor)
+                        .foregroundColor(severityColor)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(severityColor.opacity(0.12)))
 
                     Text(finding.module.rawValue)
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.white.opacity(0.4))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.white.opacity(0.06))
-                        .clipShape(Capsule())
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.primary.opacity(0.08)))
 
                     if finding.isNew {
                         Circle()
                             .fill(Color.blue)
-                            .frame(width: 5, height: 5)
+                            .frame(width: 6, height: 6)
                     }
 
                     Spacer()
@@ -198,9 +193,10 @@ private struct FindingDetailCard: View {
                     Button(action: onWhitelist) {
                         Image(systemName: "eye.slash")
                             .font(.system(size: 11))
-                            .foregroundStyle(Color.white.opacity(0.35))
+                            .foregroundColor(isHovered ? .primary : .secondary.opacity(0.6))
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
+                    .onHover { hovering in isHovered = hovering }
                     .help("Whitelist this finding")
                 }
 
@@ -211,12 +207,12 @@ private struct FindingDetailCard: View {
                             .font(.system(size: 10, design: .monospaced))
                             .lineLimit(1)
                             .truncationMode(.middle)
-                            .foregroundStyle(Color.white.opacity(0.5))
+                            .foregroundColor(.secondary.opacity(0.6))
 
                         if let line = finding.lineNumber {
                             Text(":\(line)")
                                 .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(Color.white.opacity(0.35))
+                                .foregroundColor(.secondary.opacity(0.4))
                         }
                     }
                 }
@@ -224,7 +220,7 @@ private struct FindingDetailCard: View {
                 // Description
                 Text(finding.description)
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.white.opacity(0.75))
+                    .foregroundColor(.primary.opacity(0.85))
                     .fixedSize(horizontal: false, vertical: true)
 
                 // Risk levels
@@ -237,13 +233,13 @@ private struct FindingDetailCard: View {
                 // Recommendation
                 Text(finding.recommendation)
                     .font(.system(size: 10))
-                    .foregroundStyle(Color.white.opacity(0.4))
+                    .foregroundColor(.secondary.opacity(0.6))
                     .fixedSize(horizontal: false, vertical: true)
 
                 // Finding ID
                 Text(finding.id)
                     .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.2))
+                    .foregroundColor(.secondary.opacity(0.3))
                     .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -252,8 +248,21 @@ private struct FindingDetailCard: View {
             .padding(.trailing, 4)
         }
         .padding(10)
-        .background(cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.clear)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(severityColor)
+                        .frame(width: 3)
+                        .padding(.vertical, 4)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        )
     }
 
     // MARK: - Helpers
@@ -272,16 +281,16 @@ private struct FindingDetailCard: View {
         HStack(spacing: 3) {
             Text(title + ":")
                 .font(.system(size: 9))
-                .foregroundStyle(Color.white.opacity(0.35))
+                .foregroundColor(.secondary.opacity(0.6))
             Text(level.rawValue.capitalized)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(riskColor(level))
+                .foregroundColor(riskColor(level))
         }
     }
 
     private func riskColor(_ level: RiskLevel) -> Color {
         switch level {
-        case .none:     return Color.white.opacity(0.3)
+        case .none:     return .secondary.opacity(0.4)
         case .low:      return .blue
         case .medium:   return .yellow
         case .high:     return .orange

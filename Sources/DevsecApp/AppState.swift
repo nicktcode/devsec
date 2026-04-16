@@ -23,6 +23,9 @@ public final class AppState: ObservableObject {
     @Published public var lastScanResult: FullScanResult?
     @Published public var lastScanTime: Date?
     @Published public var isScanning: Bool = false
+    @Published public var scanProgress: String = ""
+    @Published public var completedModules: Int = 0
+    @Published public var totalModules: Int = 0
     @Published public var errorMessage: String?
     @Published public var scanInterval: TimeInterval = 300
     @Published public var enabledModules: Set<ScanModule> = Set(ScanModule.allCases)
@@ -70,19 +73,57 @@ public final class AppState: ObservableObject {
         isScanning = true
         overallStatus = .scanning
         errorMessage = nil
+        completedModules = 0
+
+        let moduleNames: [ScanModule: String] = [
+            .env: "Env Files", .history: "History", .ssh: "SSH Keys",
+            .documents: "Documents", .aiTools: "AI Tools", .credentialFiles: "Credentials"
+        ]
+        let activeModules = enabledModules.isEmpty ? Set(ScanModule.allCases) : enabledModules
+        totalModules = activeModules.count
+        scanProgress = "Starting scan..."
 
         defer {
             isScanning = false
+            scanProgress = ""
         }
 
         do {
-            let orchestrator = ScanOrchestrator(
-                whitelistManager: whitelist,
-                findingStore: findingStore,
-                modules: enabledModules.isEmpty ? nil : enabledModules
-            )
+            let allScanners: [(ScanModule, any DevsecCore.Scanner)] = [
+                (ScanModule.env, EnvFileScanner()),
+                (ScanModule.history, HistoryScanner()),
+                (ScanModule.ssh, SSHScanner()),
+                (ScanModule.documents, DocumentScanner()),
+                (ScanModule.aiTools, AIToolScanner()),
+                (ScanModule.credentialFiles, CredentialFileScanner()),
+            ]
+            let scanners = allScanners.filter { activeModules.contains($0.0) }
 
-            let result = try await orchestrator.scan()
+            var results: [ScanResult] = []
+            for (module, scanner) in scanners {
+                scanProgress = "Scanning \(moduleNames[module] ?? module.rawValue)..."
+                let scanResult = try await scanner.scan()
+                results.append(scanResult)
+                completedModules += 1
+            }
+
+            var allFindings = results.flatMap(\.findings)
+            allFindings = whitelist.filterFindings(allFindings)
+            allFindings = findingStore.markNewVsKnown(allFindings)
+            findingStore.recordFindings(allFindings)
+            try? findingStore.save()
+            allFindings.sort { $0.severity > $1.severity }
+
+            let result = FullScanResult(
+                results: results,
+                findings: allFindings,
+                totalDuration: results.reduce(0) { $0 + $1.duration },
+                newCount: allFindings.filter(\.isNew).count,
+                criticalCount: allFindings.filter { $0.severity == .critical }.count,
+                highCount: allFindings.filter { $0.severity == .high }.count,
+                mediumCount: allFindings.filter { $0.severity == .medium }.count,
+                lowCount: allFindings.filter { $0.severity == .low }.count
+            )
 
             lastScanResult = result
             lastScanTime = Date()

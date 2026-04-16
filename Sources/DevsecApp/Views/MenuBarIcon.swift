@@ -7,7 +7,7 @@ struct MenuBarIcon: View {
 
     var body: some View {
         Image(systemName: symbolName)
-            .renderingMode(.template)
+            .symbolRenderingMode(.hierarchical)
     }
 
     private var symbolName: String {

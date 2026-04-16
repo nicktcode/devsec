@@ -9,29 +9,27 @@ struct ModuleSummaryRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: moduleIcon)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(result.findings.isEmpty ? Color.secondary : badgeColor)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(result.findings.isEmpty ? .secondary : badgeColor)
                 .frame(width: 20, alignment: .center)
 
             Text(moduleLabel)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.white.opacity(0.85))
+                .foregroundColor(.primary)
 
             Spacer()
 
             if result.findings.isEmpty {
                 Image(systemName: "checkmark")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.green.opacity(0.8))
+                    .foregroundColor(.green)
             } else {
                 Text("\(result.findings.count)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(minWidth: 20)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundColor(badgeColor)
                     .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(badgeColor.opacity(0.85))
-                    .clipShape(Capsule())
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(badgeColor.opacity(0.12)))
             }
         }
         .padding(.vertical, 5)
