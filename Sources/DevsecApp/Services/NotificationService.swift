@@ -12,6 +12,7 @@ public final class NotificationService: Sendable {
     // MARK: - Permission
 
     public func requestPermission() {
+        guard Bundle.main.bundleIdentifier != nil else { return }
         UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .sound, .badge]
         ) { _, _ in
@@ -22,6 +23,7 @@ public final class NotificationService: Sendable {
     // MARK: - Notifications
 
     public func sendNewFindingsNotification(count: Int, critical: Int) {
+        guard Bundle.main.bundleIdentifier != nil else { return }
         let content = UNMutableNotificationContent()
         content.title = "devsec: New Findings Detected"
 
