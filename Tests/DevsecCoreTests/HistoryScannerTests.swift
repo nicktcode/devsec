@@ -27,7 +27,7 @@ struct HistoryScannerTests {
         let contents = """
         ls -la
         cd projects
-        export OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        export OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         git status
         """
         let (tempDir, filePath) = try makeTempHistory(contents: contents)
@@ -75,7 +75,7 @@ struct HistoryScannerTests {
         let contents = """
         ls
         cd projects
-        curl -H "Authorization: Bearer sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123" https://api.example.com
+        curl -H "Authorization: Bearer sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM" https://api.example.com
         git push
         """
         let (tempDir, filePath) = try makeTempHistory(contents: contents)
@@ -93,7 +93,7 @@ struct HistoryScannerTests {
         let contents = """
         : 1700000000:0;ls
         : 1700000001:0;cd projects
-        : 1700000002:0;export STRIPE_KEY=sk_test_abcdefghijklmnopqrstuvwxyz
+        : 1700000002:0;export STRIPE_KEY=sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y
         : 1700000003:0;git status
         """
         let (tempDir, filePath) = try makeTempHistory(contents: contents)
@@ -106,7 +106,7 @@ struct HistoryScannerTests {
 
     @Test("Finding has .history module")
     func findingHasHistoryModule() throws {
-        let contents = "export AWS_SECRET=AKIAIOSFODNN7EXAMPLE123456\n"
+        let contents = "export AWS_SECRET=AKIAQZ3K7HMNRFPVUYDX123456\n"
         let (tempDir, filePath) = try makeTempHistory(contents: contents)
         defer { cleanup(tempDir) }
 
@@ -131,7 +131,7 @@ struct HistoryScannerTests {
 
     @Test("Finding recommendation includes sed command")
     func findingRecommendationIncludesSedCommand() throws {
-        let contents = "export OPENAI_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123\n"
+        let contents = "export OPENAI_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM\n"
         let (tempDir, filePath) = try makeTempHistory(contents: contents)
         defer { cleanup(tempDir) }
 
@@ -143,7 +143,7 @@ struct HistoryScannerTests {
 
     @Test("Finding ID uses history prefix with path and line number")
     func findingIDUsesCorrectFormat() throws {
-        let contents = "export OPENAI_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123\n"
+        let contents = "export OPENAI_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM\n"
         let (tempDir, filePath) = try makeTempHistory(contents: contents)
         defer { cleanup(tempDir) }
 
@@ -152,7 +152,9 @@ struct HistoryScannerTests {
         let f = try #require(findings.first)
         #expect(f.id.hasPrefix("history:"))
         #expect(f.id.contains(filePath))
-        #expect(f.id.contains(":1:"))
+        // ID now trails with the line number; format is
+        // "history:<path>:<pattern>:<preview8>:<line>".
+        #expect(f.id.hasSuffix(":1"))
     }
 
     // MARK: - Timestamp Stripping Unit Tests

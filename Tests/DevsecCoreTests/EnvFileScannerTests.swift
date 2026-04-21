@@ -28,7 +28,7 @@ struct EnvFileScannerTests {
     func detectsOpenAIKey() throws {
         let contents = """
         APP_NAME=MyApp
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         DEBUG=false
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
@@ -42,8 +42,8 @@ struct EnvFileScannerTests {
     @Test("Detects multiple secrets in env file")
     func detectsMultipleSecrets() throws {
         let contents = """
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
-        STRIPE_SECRET_KEY=sk_test_abcdefghijklmnopqrstuvwxyz
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
+        STRIPE_SECRET_KEY=sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y
         APP_NAME=MyApp
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
@@ -73,8 +73,8 @@ struct EnvFileScannerTests {
     @Test("Skips commented lines")
     func skipsCommentedLines() throws {
         let contents = """
-        # OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
-        # This is a comment with STRIPE_SECRET=sk_test_abcdefghijklmnopqrstuvwxyz
+        # OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
+        # This is a comment with STRIPE_SECRET=sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y
         APP_NAME=MyApp
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
@@ -107,7 +107,7 @@ struct EnvFileScannerTests {
         let contents = """
         APP_NAME=MyApp
         DEBUG=false
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         REGION=us-east-1
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
@@ -124,7 +124,7 @@ struct EnvFileScannerTests {
     @Test("Finding ID is stable across multiple scans of same file")
     func findingIDIsStable() throws {
         let contents = """
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
         defer { cleanup(tempDir) }
@@ -146,7 +146,7 @@ struct EnvFileScannerTests {
     @Test("Finding contains non-empty secret preview")
     func findingHasSecretPreview() throws {
         let contents = """
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
         defer { cleanup(tempDir) }
@@ -162,7 +162,7 @@ struct EnvFileScannerTests {
     @Test("Finding module is .env")
     func findingModuleIsEnv() throws {
         let contents = """
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
         defer { cleanup(tempDir) }
@@ -175,7 +175,7 @@ struct EnvFileScannerTests {
     @Test("Finding filePath matches scanned file")
     func findingFilePathMatches() throws {
         let contents = """
-        OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+        OPENAI_API_KEY=sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
         defer { cleanup(tempDir) }
@@ -190,7 +190,7 @@ struct EnvFileScannerTests {
     @Test("Strips double quotes from value before pattern matching")
     func stripsDoubleQuotes() throws {
         let contents = """
-        OPENAI_API_KEY="sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123"
+        OPENAI_API_KEY="sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM"
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
         defer { cleanup(tempDir) }
@@ -202,7 +202,7 @@ struct EnvFileScannerTests {
     @Test("Strips single quotes from value before pattern matching")
     func stripsSingleQuotes() throws {
         let contents = """
-        OPENAI_API_KEY='sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123'
+        OPENAI_API_KEY='sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM'
         """
         let (tempDir, filePath) = try makeTempEnv(contents: contents)
         defer { cleanup(tempDir) }

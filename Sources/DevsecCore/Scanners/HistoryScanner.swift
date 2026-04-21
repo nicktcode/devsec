@@ -15,7 +15,7 @@ public struct HistoryScanner: Scanner {
 
     public var module: ScanModule { .history }
 
-    public func scan() async throws -> ScanResult {
+    public func scan(onProgress: ScanProgressHandler? = nil) async throws -> ScanResult {
         let start = Date()
         let home = FileManager.default.homeDirectoryForCurrentUser.path
 
@@ -27,6 +27,7 @@ public struct HistoryScanner: Scanner {
         ]
 
         // Discover additional history files via Spotlight glob
+        onProgress?("Discovering history files")
         let discovered = await SpotlightEngine.findFiles(matchingGlob: "*_history", searchPath: home)
 
         // Deduplicate
@@ -42,44 +43,79 @@ public struct HistoryScanner: Scanner {
         let fm = FileManager.default
         let existingPaths = allPaths.filter { fm.fileExists(atPath: $0) }
 
+        onProgress?("Found \(existingPaths.count) history files")
+
         var allFindings: [Finding] = []
-        for path in existingPaths {
-            let findings = HistoryScanner.scanFile(at: path)
-            allFindings.append(contentsOf: findings)
+        var offloadedPaths: [String] = []
+        for (i, path) in existingPaths.enumerated() {
+            let filename = (path as NSString).lastPathComponent
+            let dir = ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent
+            onProgress?("[\(i+1)/\(existingPaths.count)] \(dir)/\(filename)")
+            let outcome = HistoryScanner.scanFileDetailed(at: path)
+            allFindings.append(contentsOf: outcome.findings)
+            if outcome.skipped == .cloudPlaceholder {
+                offloadedPaths.append(path)
+            }
         }
 
         let duration = Date().timeIntervalSince(start)
-        return ScanResult(module: .history, findings: allFindings, duration: duration)
+        return ScanResult(
+            module: .history,
+            findings: allFindings,
+            duration: duration,
+            offloadedPaths: offloadedPaths
+        )
     }
 
     // MARK: - Static File Scanner
 
-    /// Reads a history file, strips zsh timestamps, and scans each line for secrets.
-    public static func scanFile(at path: String) -> [Finding] {
-        guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
-            // Try latin1 as fallback since some history files have non-UTF8 bytes
-            guard let contents = try? String(contentsOfFile: path, encoding: .isoLatin1) else {
-                return []
-            }
-            return scanLines(contents.components(separatedBy: "\n"), path: path)
-        }
-        return scanLines(contents.components(separatedBy: "\n"), path: path)
+    public struct FileScanOutcome: Sendable {
+        public let findings: [Finding]
+        public let skipped: SafeFileReader.SkipReason?
     }
 
-    private static func scanLines(_ lines: [String], path: String) -> [Finding] {
+    /// Back-compat wrapper. Prefer ``scanFileDetailed(at:)``.
+    public static func scanFile(at path: String) -> [Finding] {
+        scanFileDetailed(at: path).findings
+    }
+
+    /// Maximum detailed findings per (history file, pattern) pair. Without
+    /// this, a shell history full of the same kind of token (e.g. twenty
+    /// `heroku auth:token XXXX` invocations) produces twenty separate cards
+    /// that drown out everything else. Extra occurrences roll up into a
+    /// single summary card.
+    private static let perPatternCapPerFile: Int = 3
+
+    /// Reads a history file via ``SafeFileReader`` (latin1 fallback handled there),
+    /// strips zsh timestamps, and scans each line for secrets.
+    public static func scanFileDetailed(at path: String) -> FileScanOutcome {
         var findings: [Finding] = []
+        var countsByPattern: [String: Int] = [:]
+        var firstLineByPattern: [String: Int] = [:]
+        let filename = (path as NSString).lastPathComponent
 
-        for (index, rawLine) in lines.enumerated() {
-            let lineNumber = index + 1
+        let summary = SafeFileReader.forEachLine(at: path) { rawLine, lineNumber in
             let command = stripZshTimestamp(rawLine)
-
-            guard !command.isEmpty else { continue }
+            guard !command.isEmpty else { return }
 
             let matches = PatternDatabase.findSecrets(in: command)
-            guard !matches.isEmpty else { continue }
+            guard !matches.isEmpty else { return }
 
             for match in matches {
-                let findingId = "history:\(path):\(lineNumber):\(match.patternName)"
+                let count = (countsByPattern[match.patternName] ?? 0) + 1
+                countsByPattern[match.patternName] = count
+                if firstLineByPattern[match.patternName] == nil {
+                    firstLineByPattern[match.patternName] = lineNumber
+                }
+
+                // Keep counting past the cap so the rollup card is accurate,
+                // but stop emitting detailed cards.
+                guard count <= HistoryScanner.perPatternCapPerFile else { continue }
+
+                // Include preview8 in the ID so two truly distinct tokens
+                // on adjacent lines still end up as distinct findings.
+                let preview8 = String(match.matchedText.prefix(8))
+                let findingId = "history:\(path):\(match.patternName):\(preview8):\(lineNumber)"
 
                 let finding = Finding(
                     id: findingId,
@@ -99,7 +135,27 @@ public struct HistoryScanner: Scanner {
             }
         }
 
-        return findings
+        // Emit one rollup card per pattern that exceeded the cap.
+        for (pattern, total) in countsByPattern
+        where total > HistoryScanner.perPatternCapPerFile {
+            let extra = total - HistoryScanner.perPatternCapPerFile
+            let firstLine = firstLineByPattern[pattern] ?? 0
+            findings.append(Finding(
+                id: "history:\(path):\(pattern):rollup",
+                module: .history,
+                severity: .high,
+                gitRisk: .none,
+                localRisk: .high,
+                filePath: path,
+                lineNumber: firstLine,
+                description: "+\(extra) more \(pattern) matches in \(filename)",
+                secretPreview: "",
+                recommendation: "This history file has \(total) \(pattern) hits. Clear them in bulk: grep -vE 'pattern' \(path) > \(path).cleaned && mv \(path).cleaned \(path).",
+                isNew: true
+            ))
+        }
+
+        return FileScanOutcome(findings: findings, skipped: summary.skipped)
     }
 
     // MARK: - Private Helpers

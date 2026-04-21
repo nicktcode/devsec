@@ -4,7 +4,7 @@ import Foundation
 
 /// Scans .env files discovered via Spotlight for hardcoded secrets.
 ///
-/// Just being in .gitignore does not make a secret safe — local compromise risk
+/// Just being in .gitignore does not make a secret safe. local compromise risk
 /// remains high. EnvFileScanner surfaces both git and local risk for each finding.
 public struct EnvFileScanner: Scanner {
 
@@ -14,16 +14,15 @@ public struct EnvFileScanner: Scanner {
 
     public var module: ScanModule { .env }
 
-    public func scan() async throws -> ScanResult {
+    public func scan(onProgress: ScanProgressHandler? = nil) async throws -> ScanResult {
         let start = Date()
 
-        // Discover .env files via Spotlight
+        onProgress?("Discovering .env files")
         async let exactMatches = SpotlightEngine.findFiles(named: ".env")
         async let globMatches = SpotlightEngine.findFiles(matchingGlob: ".env.*")
 
         let (exact, glob) = await (exactMatches, globMatches)
 
-        // Deduplicate preserving order
         var seen = Set<String>()
         var paths: [String] = []
         for path in exact + glob {
@@ -32,41 +31,62 @@ public struct EnvFileScanner: Scanner {
             }
         }
 
-        // Scan each file
+        onProgress?("Found \(paths.count) env files")
+
         var allFindings: [Finding] = []
-        for path in paths {
-            let findings = EnvFileScanner.scanFile(at: path)
-            allFindings.append(contentsOf: findings)
+        var offloadedPaths: [String] = []
+        for (i, path) in paths.enumerated() {
+            let filename = (path as NSString).lastPathComponent
+            let dir = ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent
+            onProgress?("[\(i+1)/\(paths.count)] \(dir)/\(filename)")
+            let outcome = EnvFileScanner.scanFileDetailed(at: path)
+            allFindings.append(contentsOf: outcome.findings)
+            if outcome.skipped == .cloudPlaceholder {
+                offloadedPaths.append(path)
+            }
         }
 
         let duration = Date().timeIntervalSince(start)
-        return ScanResult(module: .env, findings: allFindings, duration: duration)
+        return ScanResult(
+            module: .env,
+            findings: allFindings,
+            duration: duration,
+            offloadedPaths: offloadedPaths
+        )
     }
 
     // MARK: - Static File Scanner
 
-    /// Parses a single .env file and returns findings for any secrets detected.
-    public static func scanFile(at path: String) -> [Finding] {
-        guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
-            return []
-        }
+    /// Outcome of scanning a single file: findings plus optional skip reason.
+    public struct FileScanOutcome: Sendable {
+        public let findings: [Finding]
+        public let skipped: SafeFileReader.SkipReason?
+    }
 
-        let lines = contents.components(separatedBy: "\n")
+    /// Parses a single .env file and returns findings for any secrets detected.
+    /// Back-compat wrapper around ``scanFileDetailed(at:)``.
+    public static func scanFile(at path: String) -> [Finding] {
+        scanFileDetailed(at: path).findings
+    }
+
+    /// Parses a single .env file and returns findings plus a skip reason if the
+    /// file was not processed. Goes through ``SafeFileReader`` so iCloud
+    /// placeholders are skipped without triggering downloads.
+    public static func scanFileDetailed(at path: String) -> FileScanOutcome {
         let isIgnored = checkGitignore(filePath: path)
         var findings: [Finding] = []
 
-        for (index, rawLine) in lines.enumerated() {
-            let lineNumber = index + 1
+        let summary = SafeFileReader.forEachLine(at: path) { rawLine, lineNumber in
             let line = rawLine.trimmingCharacters(in: .whitespaces)
 
             // Skip empty lines
-            guard !line.isEmpty else { continue }
+            guard !line.isEmpty else { return }
 
             // Skip comment lines
-            guard !line.hasPrefix("#") else { continue }
+            guard !line.hasPrefix("#") else { return }
 
             // Skip lines that use 1Password op:// references
-            guard !line.contains("op://") else { continue }
+            guard !line.contains("op://") else { return }
 
             // Parse KEY=VALUE format
             let (_, value) = parseLine(line)
@@ -89,7 +109,7 @@ public struct EnvFileScanner: Scanner {
             }
 
             let matches = PatternDatabase.findSecrets(in: scanLine)
-            guard !matches.isEmpty else { continue }
+            guard !matches.isEmpty else { return }
 
             for match in matches {
                 let assessment = RiskClassifier.classify(
@@ -118,7 +138,7 @@ public struct EnvFileScanner: Scanner {
             }
         }
 
-        return findings
+        return FileScanOutcome(findings: findings, skipped: summary.skipped)
     }
 
     // MARK: - Private Helpers

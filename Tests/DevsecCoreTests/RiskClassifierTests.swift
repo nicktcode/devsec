@@ -35,7 +35,7 @@ struct RiskClassifierTests {
     @Test("Plaintext in gitignore returns high severity, low git risk, high local risk")
     func plaintextInGitignoreReturnsHighSeverity() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/project/.env",
             isInGitignore: true
         )
@@ -47,7 +47,7 @@ struct RiskClassifierTests {
     @Test("Plaintext NOT in gitignore returns critical severity and critical git risk")
     func plaintextNotInGitignoreReturnsCriticalSeverity() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/project/.env",
             isInGitignore: false
         )
@@ -84,7 +84,7 @@ struct RiskClassifierTests {
     @Test("Desktop location raises severity to critical")
     func desktopLocationRaisesToCritical() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/Desktop/.env",
             isInGitignore: false
         )
@@ -95,7 +95,7 @@ struct RiskClassifierTests {
     @Test("Downloads location raises severity to critical")
     func downloadsLocationRaisesToCritical() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/Downloads/secrets.txt",
             isInGitignore: false
         )
@@ -137,7 +137,7 @@ struct RiskClassifierTests {
     @Test("Document with secret returns critical severity")
     func documentWithSecretReturnsCritical() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/Documents/setup.docx",
             isInGitignore: false
         )
@@ -148,7 +148,7 @@ struct RiskClassifierTests {
     @Test("PDF with secret returns critical severity")
     func pdfWithSecretReturnsCritical() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/Documents/guide.pdf",
             isInGitignore: false
         )
@@ -194,7 +194,7 @@ struct RiskClassifierTests {
     @Test("Recommendation for plaintext not in gitignore suggests migration to op://")
     func recommendationForPlaintextSuggestsMigration() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/project/.env",
             isInGitignore: false
         )
@@ -205,7 +205,7 @@ struct RiskClassifierTests {
     @Test("Recommendation for document mentions removing from doc")
     func recommendationForDocumentMentionsRemoval() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/Documents/guide.pdf",
             isInGitignore: false
         )
@@ -216,7 +216,7 @@ struct RiskClassifierTests {
     @Test("Recommendation for unsafe location mentions moving the file")
     func recommendationForUnsafeLocationMentionsMoving() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/Desktop/secrets.env",
             isInGitignore: false
         )
@@ -229,7 +229,7 @@ struct RiskClassifierTests {
     @Test("Plaintext in gitignore but not migrated still suggests op:// migration")
     func plaintextInGitignoreSuggestsMigration() {
         let result = RiskClassifier.classify(
-            secretValue: "sk_test_abcdefghijklmnopqrstuvwxyz",
+            secretValue: "sk_test_9gT7hP2kQ4wR8mZ5vN3jB6xF1y",
             filePath: "/Users/user/project/.env",
             isInGitignore: true
         )

@@ -31,7 +31,7 @@ struct AIToolScannerTests {
         {
           "mcpServers": {
             "openai": {
-              "apiKey": "sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123"
+              "apiKey": "sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM"
             }
           }
         }
@@ -49,7 +49,7 @@ struct AIToolScannerTests {
         let contents = """
         {
           "github": {
-            "token": "ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            "token": "ghp_9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW"
           }
         }
         """
@@ -121,7 +121,7 @@ struct AIToolScannerTests {
     @Test("Finding has .aiTools module")
     func findingHasAIToolsModule() throws {
         let contents = """
-        {"apiKey": "sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123"}
+        {"apiKey": "sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM"}
         """
         let (tempDir, filePath) = try makeTempConfig(contents: contents)
         defer { cleanup(tempDir) }
@@ -134,7 +134,7 @@ struct AIToolScannerTests {
     @Test("Finding ID uses ai prefix")
     func findingIDUsesAIPrefix() throws {
         let contents = """
-        {"apiKey": "sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123"}
+        {"apiKey": "sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM"}
         """
         let (tempDir, filePath) = try makeTempConfig(contents: contents)
         defer { cleanup(tempDir) }
@@ -147,7 +147,7 @@ struct AIToolScannerTests {
     @Test("Finding recommendation mentions 1Password")
     func findingRecommendationMentions1Password() throws {
         let contents = """
-        {"apiKey": "sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123"}
+        {"apiKey": "sk-proj-9gT7hP2kQ4wR8mZ5vN3jB6xF1yL0cV9bA8sW7uE4iK2oY6tM"}
         """
         let (tempDir, filePath) = try makeTempConfig(contents: contents)
         defer { cleanup(tempDir) }

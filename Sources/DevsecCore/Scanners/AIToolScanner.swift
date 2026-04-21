@@ -69,7 +69,7 @@ public struct AIToolScanner: Scanner {
 
     public var module: ScanModule { .aiTools }
 
-    public func scan() async throws -> ScanResult {
+    public func scan(onProgress: ScanProgressHandler? = nil) async throws -> ScanResult {
         let start = Date()
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let fm = FileManager.default
@@ -77,6 +77,7 @@ public struct AIToolScanner: Scanner {
         var allPaths: [(path: String, toolName: String)] = []
 
         // Check each tool's known config paths
+        onProgress?("Checking AI tool configs")
         for tool in AIToolScanner.knownTools {
             for relativePath in tool.configPaths {
                 let fullPath = "\(home)/\(relativePath)"
@@ -87,6 +88,7 @@ public struct AIToolScanner: Scanner {
         }
 
         // Spotlight discovery for common AI config filenames
+        onProgress?("Discovering MCP/CLAUDE.md files")
         let spotlightTargets = ["mcp.json", "claude_desktop_config.json", "CLAUDE.md"]
         for target in spotlightTargets {
             let found = await SpotlightEngine.findFiles(named: target, searchPath: home)
@@ -99,55 +101,75 @@ public struct AIToolScanner: Scanner {
             }
         }
 
+        onProgress?("Found \(allPaths.count) AI config files")
+
         var allFindings: [Finding] = []
-        for entry in allPaths {
-            let findings = AIToolScanner.scanConfigFile(at: entry.path, toolName: entry.toolName)
-            allFindings.append(contentsOf: findings)
+        var offloadedPaths: [String] = []
+        for (i, entry) in allPaths.enumerated() {
+            let filename = (entry.path as NSString).lastPathComponent
+            let dir = ((entry.path as NSString).deletingLastPathComponent as NSString).lastPathComponent
+            onProgress?("[\(i+1)/\(allPaths.count)] \(dir)/\(filename)")
+            let outcome = AIToolScanner.scanConfigFileDetailed(at: entry.path, toolName: entry.toolName)
+            allFindings.append(contentsOf: outcome.findings)
+            if outcome.skipped == .cloudPlaceholder {
+                offloadedPaths.append(entry.path)
+            }
         }
 
         let duration = Date().timeIntervalSince(start)
-        return ScanResult(module: .aiTools, findings: allFindings, duration: duration)
+        return ScanResult(
+            module: .aiTools,
+            findings: allFindings,
+            duration: duration,
+            offloadedPaths: offloadedPaths
+        )
     }
 
     // MARK: - Static Config File Scanner
 
-    /// Reads an AI tool config file and returns findings for any secrets detected.
-    /// Skips files that only contain op:// references.
+    public struct FileScanOutcome: Sendable {
+        public let findings: [Finding]
+        public let skipped: SafeFileReader.SkipReason?
+    }
+
+    /// Back-compat wrapper. Prefer ``scanConfigFileDetailed(at:toolName:)``.
     public static func scanConfigFile(at path: String, toolName: String) -> [Finding] {
-        guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
-            return []
-        }
+        scanConfigFileDetailed(at: path, toolName: toolName).findings
+    }
 
-        // Skip if all values appear to be op:// references (properly managed)
-        // We still scan: just let PatternDatabase handle op:// skipping internally
-        let matches = PatternDatabase.findSecrets(in: contents)
-        guard !matches.isEmpty else { return [] }
-
+    /// Reads an AI tool config file and returns findings plus skip reason.
+    /// Uses ``SafeFileReader`` so iCloud placeholders aren't materialized.
+    public static func scanConfigFileDetailed(at path: String, toolName: String) -> FileScanOutcome {
         var findings: [Finding] = []
         let filename = URL(fileURLWithPath: path).lastPathComponent
 
-        for match in matches {
-            let preview8 = String(match.matchedText.prefix(8))
-            let findingId = "ai:\(path):\(match.patternName):\(preview8)"
+        let summary = SafeFileReader.forEachLine(at: path) { line, lineNumber in
+            let matches = PatternDatabase.findSecrets(in: line)
+            guard !matches.isEmpty else { return }
 
-            let finding = Finding(
-                id: findingId,
-                module: .aiTools,
-                severity: .high,
-                gitRisk: .high,
-                localRisk: .high,
-                filePath: path,
-                lineNumber: nil,
-                description: "\(match.patternName) found in \(toolName) config (\(filename))",
-                secretPreview: PatternDatabase.maskSecret(match.matchedText),
-                recommendation: "Move this secret to 1Password and reference it via op://vault/item/field in your \(toolName) configuration.",
-                isNew: true
-            )
+            for match in matches {
+                let preview8 = String(match.matchedText.prefix(8))
+                let findingId = "ai:\(path):\(match.patternName):\(preview8)"
 
-            findings.append(finding)
+                let finding = Finding(
+                    id: findingId,
+                    module: .aiTools,
+                    severity: .high,
+                    gitRisk: .high,
+                    localRisk: .high,
+                    filePath: path,
+                    lineNumber: lineNumber,
+                    description: "\(match.patternName) found in \(toolName) config (\(filename))",
+                    secretPreview: PatternDatabase.maskSecret(match.matchedText),
+                    recommendation: "Move this secret to 1Password and reference it via op://vault/item/field in your \(toolName) configuration.",
+                    isNew: true
+                )
+
+                findings.append(finding)
+            }
         }
 
-        return findings
+        return FileScanOutcome(findings: findings, skipped: summary.skipped)
     }
 
     // MARK: - Private Helpers

@@ -48,13 +48,14 @@ public struct CredentialFileScanner: Scanner {
 
     public var module: ScanModule { .credentialFiles }
 
-    public func scan() async throws -> ScanResult {
+    public func scan(onProgress: ScanProgressHandler? = nil) async throws -> ScanResult {
         let start = Date()
         let home = FileManager.default.homeDirectoryForCurrentUser.path
 
         var allPaths: [String] = []
 
         // Search for exact dangerous filenames
+        onProgress?("Discovering credential files")
         for filename in CredentialFileScanner.dangerousFilenames {
             let found = await SpotlightEngine.findFiles(named: filename, searchPath: home)
             allPaths.append(contentsOf: found)
@@ -87,9 +88,24 @@ public struct CredentialFileScanner: Scanner {
             }
         }
 
-        var allFindings: [Finding] = []
         let fm = FileManager.default
-        for path in uniquePaths where fm.fileExists(atPath: path) {
+        // Apply both user-defined exclusions and damit's canonical built-in
+        // exclusions (e.g. Chromium apps ship zxcvbn's `passwords.txt`
+        // dictionary under `ZxcvbnData/`; that's a common-passwords wordlist
+        // used for strength checking, not the user's credentials).
+        let existingPaths = uniquePaths.filter { path in
+            guard fm.fileExists(atPath: path) else { return false }
+            if BuiltInScanExclusions.isExcluded(path) { return false }
+            if ScanExclusions.isExcluded(path) { return false }
+            return true
+        }
+        onProgress?("Found \(existingPaths.count) credential files")
+
+        var allFindings: [Finding] = []
+        for (i, path) in existingPaths.enumerated() {
+            let filename = (path as NSString).lastPathComponent
+            let dir = ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent
+            onProgress?("[\(i+1)/\(existingPaths.count)] \(dir)/\(filename)")
             let findings = CredentialFileScanner.scanFile(at: path)
             allFindings.append(contentsOf: findings)
         }
@@ -112,7 +128,23 @@ public struct CredentialFileScanner: Scanner {
 
         guard isDangerous else { return [] }
 
-        let assessment = RiskClassifier.classifyCredentialFile(filePath: path)
+        // Peek at the file's contents/format to decide whether it's a
+        // genuinely plaintext dump or an encrypted container. This changes
+        // how RiskClassifier grades the finding (critical vs. medium).
+        let inspection = CredentialFileInspector.inspect(path: path)
+        let assessment = RiskClassifier.classifyCredentialFile(
+            filePath: path,
+            inspection: inspection
+        )
+
+        // Prefix the description with the detected format so the user can
+        // see at a glance whether damit thinks it's encrypted.
+        let description: String
+        if inspection.isEncrypted {
+            description = "Credential file (\(inspection.format)): \(url.lastPathComponent)"
+        } else {
+            description = "Credential file found: \(url.lastPathComponent)"
+        }
 
         let finding = Finding(
             id: "cred:\(path)",
@@ -122,7 +154,7 @@ public struct CredentialFileScanner: Scanner {
             localRisk: assessment.localRisk,
             filePath: path,
             lineNumber: nil,
-            description: "Credential file found: \(url.lastPathComponent)",
+            description: description,
             secretPreview: url.lastPathComponent,
             recommendation: assessment.recommendation,
             isNew: true
