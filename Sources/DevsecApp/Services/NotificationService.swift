@@ -25,10 +25,10 @@ public final class NotificationService: Sendable {
     public func sendNewFindingsNotification(count: Int, critical: Int) {
         guard Bundle.main.bundleIdentifier != nil else { return }
         let content = UNMutableNotificationContent()
-        content.title = "devsec: New Findings Detected"
+        content.title = "damit: New Findings Detected"
 
         if critical > 0 {
-            content.body = "\(count) new finding\(count == 1 ? "" : "s") — \(critical) critical. Tap to review."
+            content.body = "\(count) new finding\(count == 1 ? "" : "s"). \(critical) critical. Tap to review."
             content.sound = .defaultCritical
         } else {
             content.body = "\(count) new finding\(count == 1 ? "" : "s") detected. Tap to review."
@@ -36,7 +36,7 @@ public final class NotificationService: Sendable {
         }
 
         let request = UNNotificationRequest(
-            identifier: "devsec.newFindings.\(Date().timeIntervalSince1970)",
+            identifier: "damit.newFindings.\(Date().timeIntervalSince1970)",
             content: content,
             trigger: nil // deliver immediately
         )

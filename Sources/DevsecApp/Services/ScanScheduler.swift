@@ -37,10 +37,16 @@ public final class ScanScheduler {
     public func updateInterval(_ interval: TimeInterval) {
         guard let appState else { return }
         appState.scanInterval = interval
-        if timer != nil {
-            stop()
-            scheduleRepeating()
-        }
+        reschedule()
+    }
+
+    /// Tears down and re-creates the repeating timer at the current
+    /// ``AppState/scanInterval``. Safe to call even if the scheduler is
+    /// already stopped. it'll no-op.
+    public func reschedule() {
+        guard timer != nil else { return }
+        stop()
+        scheduleRepeating()
     }
 
     // MARK: - Private
