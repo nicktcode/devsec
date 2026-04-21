@@ -153,7 +153,29 @@ public enum RiskClassifier {
     }
 
     /// Classify a password export or credential file.
-    public static func classifyCredentialFile(filePath: String) -> RiskAssessment {
+    ///
+    /// - Parameters:
+    ///   - filePath: Absolute path to the file.
+    ///   - inspection: Format sniff from ``CredentialFileInspector``. When the
+    ///     file is detected as an encrypted container (PKCS#12, Java
+    ///     keystore, Firefox NSS-encrypted `logins.json`, …) we downgrade
+    ///     the local severity and change the recommendation accordingly.
+    ///     Encrypted-at-rest files are *not* harmless. losing one to a
+    ///     public repo still exposes passphrase-protected key material, 
+    ///     so the git risk stays high.
+    public static func classifyCredentialFile(
+        filePath: String,
+        inspection: CredentialFileInspector.Inspection
+    ) -> RiskAssessment {
+        if inspection.isEncrypted {
+            return RiskAssessment(
+                severity: .medium,
+                gitRisk: .high,
+                localRisk: .low,
+                recommendation: "\(inspection.format). Encrypted at rest, so a local copy is low risk by itself. but treat the passphrase as a secret and make sure the file is not committed to a public repo."
+            )
+        }
+
         let lower = filePath.lowercased()
         let isPasswordExport = lower.contains("password") ||
                                lower.contains("logins") ||
@@ -172,6 +194,15 @@ public enum RiskClassifier {
             gitRisk: .critical,
             localRisk: .critical,
             recommendation: recommendation
+        )
+    }
+
+    /// Back-compat shim: classifies as if the file were plaintext. New code
+    /// should pass an ``CredentialFileInspector/Inspection``.
+    public static func classifyCredentialFile(filePath: String) -> RiskAssessment {
+        classifyCredentialFile(
+            filePath: filePath,
+            inspection: CredentialFileInspector.Inspection(isEncrypted: false, format: "plaintext")
         )
     }
 }
