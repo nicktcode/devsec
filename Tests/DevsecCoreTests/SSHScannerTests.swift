@@ -7,15 +7,26 @@ struct SSHScannerTests {
 
     // MARK: - Helpers
 
+    // Fixtures must carry enough base64 body for SSHScanner to accept the
+    // file as a real PEM block (≥100 base64-looking chars between BEGIN
+    // and END). The payload contents are arbitrary. what matters is that
+    // the envelope looks like a real key, not a documentation reference.
     private let samplePrivateKey = """
     -----BEGIN OPENSSH PRIVATE KEY-----
-    b3BlbnNzaC1rZXktdjEAAAA...
+    b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQy
+    NTUxOQAAACA2Xyj6l5e8Pj5JxSfaKWB7v2CoKQ2ZFyuFXqB9WeaPnAAAAJi8mX3ovJl96AAA
+    AAtzc2gtZWQyNTUxOQAAACA2Xyj6l5e8Pj5JxSfaKWB7v2CoKQ2ZFyuFXqB9WeaPnAAAAEBu
+    uRCQELXH3vUnFmAl3lQyW7hDjZ0PGRxQWkWNmoNsaDZfKPqXl7w+PknFJ9opYHu/YKgpDZkX
+    K4VeoH1Z5o+cAAAAEHRlc3RAZXhhbXBsZS5jb20BAgMEBQ==
     -----END OPENSSH PRIVATE KEY-----
     """
 
     private let sampleRSAKey = """
     -----BEGIN RSA PRIVATE KEY-----
-    MIIEpAIBAAKCAQEA0Z3VS5JJcds3xHn/ygWep4mZh...
+    MIIEpAIBAAKCAQEA0Z3VS5JJcds3xHn/ygWep4mZhA9VA8yPzHZRfn6ucFqX2m0xKnwbLmBH
+    bEqZGtR04fR7pXOHwpQnDHhzJc9e5yxYYzCk3vRdyJ6QmqC2c+LGa0xYEKpHnnkrLZwOfbN4
+    g6TtYoY8Fq9I8TnDvVrS1w2b2Xlzo3mqQ3eT9b3LfPq4wYnR8pXq4mHbOaJz9PvXoCgXhJCf
+    fakebutlongenoughbase64payloadcontentforteststAA==
     -----END RSA PRIVATE KEY-----
     """
 
@@ -218,5 +229,37 @@ struct SSHScannerTests {
     func scannerModuleProperty() {
         let scanner = SSHScanner()
         #expect(scanner.module == .ssh)
+    }
+
+    // MARK: - PEM Body Validation
+
+    @Test("Header-only documentation mention does not count as a key")
+    func rejectsHeaderOnlyMention() {
+        // This is how damit's own source and docs end up in the report:
+        // the string `-----BEGIN OPENSSH PRIVATE KEY-----` appears as a
+        // pattern literal with no matching footer or base64 body.
+        let doc = """
+        This scanner looks for '-----BEGIN OPENSSH PRIVATE KEY-----'
+        headers in files on disk.
+        """
+        #expect(!SSHScanner.containsRealPrivateKey(doc))
+    }
+
+    @Test("BEGIN with tiny body does not count as a key")
+    func rejectsTinyBody() {
+        // A BEGIN/END pair with only a handful of base64 chars. below the
+        // ≥100 threshold. Common in documentation/examples.
+        let shortPem = """
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEA0Z3V...
+        -----END RSA PRIVATE KEY-----
+        """
+        #expect(!SSHScanner.containsRealPrivateKey(shortPem))
+    }
+
+    @Test("Real PEM block with full base64 body is detected")
+    func acceptsRealPemBlock() {
+        #expect(SSHScanner.containsRealPrivateKey(samplePrivateKey))
+        #expect(SSHScanner.containsRealPrivateKey(sampleRSAKey))
     }
 }
