@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "devsec",
+    name: "damit",
     platforms: [
         .macOS(.v14)
     ],
@@ -17,7 +17,7 @@ let package = Package(
             dependencies: []
         ),
         .executableTarget(
-            name: "devsec-cli",
+            name: "damit-cli",
             dependencies: [
                 "DevsecCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -28,6 +28,13 @@ let package = Package(
             dependencies: [
                 "DevsecCore",
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern"),
+            ],
+            resources: [
+                // Bundles the menubar silhouette (loaded as template
+                // image for automatic system tinting) and the six
+                // color state beaver variants used inside the popover
+                // and Full Report window.
+                .process("Resources"),
             ]
         ),
         .testTarget(

@@ -1,11 +1,11 @@
-# devsec - Developer Workstation Security Auditor
+# damit - Developer Workstation Security Auditor
 
 **Date:** 2026-04-16
 **Status:** Design approved
 
 ## Overview
 
-A macOS security auditor that continuously scans a developer's entire machine for exposed secrets, credentials, and security misconfigurations. Unlike code scanners (gitleaks, truffleHog) that scan repos, or server auditors (Lynis) that scan servers, devsec scans your **workstation** holistically -- code, documents, shell history, AI tool configs, clipboard, SSH keys, and more.
+A macOS security auditor that continuously scans a developer's entire machine for exposed secrets, credentials, and security misconfigurations. Unlike code scanners (gitleaks, truffleHog) that scan repos, or server auditors (Lynis) that scan servers, damit scans your **workstation** holistically -- code, documents, shell history, AI tool configs, clipboard, SSH keys, and more.
 
 **Key differentiators:**
 - Full-disk content search via macOS Spotlight (finds secrets inside PDFs, Word docs, Notes, spreadsheets -- not just code)
@@ -21,7 +21,7 @@ A macOS security auditor that continuously scans a developer's entire machine fo
 ## Architecture
 
 ```
-devsec/
+damit/
 ├── DevsecCore/              # Swift package -- shared detection engine
 │   ├── Scanner.swift        # Orchestrates all scan modules
 │   ├── SpotlightEngine.swift    # mdfind wrapper + fallback
@@ -44,7 +44,7 @@ devsec/
 │       ├── Finding.swift        # Single detected issue
 │       ├── Severity.swift       # critical/high/medium/low/info
 │       └── RiskDimension.swift  # git risk + local risk
-├── devsec-cli/              # CLI executable
+├── damit-cli/              # CLI executable
 │   └── main.swift
 ├── DevsecApp/               # macOS menubar app (paid)
 │   ├── DevsecApp.swift
@@ -297,7 +297,7 @@ Classification signals:
 ### Config File
 
 ```toml
-# ~/.config/devsec/config.toml
+# ~/.config/damit/config.toml
 
 [scan]
 interval = 300              # seconds between scans (menubar app only)
@@ -331,7 +331,7 @@ safe_patterns = [
 
 ### Whitelist Behavior
 - Whitelisted items are hidden from reports by default
-- `devsec scan --show-whitelisted` reveals them with a "whitelisted" tag
+- `damit scan --show-whitelisted` reveals them with a "whitelisted" tag
 - Changed files are always re-scanned even if previously whitelisted
 - The menubar app offers right-click "Whitelist this finding" which appends to config
 - No auto-whitelisting -- every plaintext secret is a finding regardless of gitignore status
@@ -340,40 +340,40 @@ safe_patterns = [
 
 ```bash
 # Full scan (default)
-devsec scan
+damit scan
 
 # Scan specific modules only
-devsec scan --modules ssh,env,ai
+damit scan --modules ssh,env,ai
 
 # Output formats
-devsec scan --format text          # human readable (default)
-devsec scan --format json          # machine readable
-devsec scan --format markdown      # for reports
+damit scan --format text          # human readable (default)
+damit scan --format json          # machine readable
+damit scan --format markdown      # for reports
 
 # Show whitelisted items too
-devsec scan --show-whitelisted
+damit scan --show-whitelisted
 
 # Manage whitelist
-devsec whitelist add <finding-id>
-devsec whitelist remove <finding-id>
-devsec whitelist list
+damit whitelist add <finding-id>
+damit whitelist remove <finding-id>
+damit whitelist list
 
 # Show details for a specific finding
-devsec explain <finding-id>
+damit explain <finding-id>
 
 # Migrate a .env file to 1Password references
-devsec migrate <path-to-env-file>
+damit migrate <path-to-env-file>
 
 # Check tool version and Spotlight health
-devsec status
+damit status
 ```
 
 ### CLI Output Example
 
 ```
-$ devsec scan
+$ damit scan
 
-devsec v1.0.0 -- scanning your machine
+damit v1.0.0 -- scanning your machine
 Using Spotlight (indexed, fast mode)
 
 SSH Keys ............................................. 2 findings
@@ -416,9 +416,9 @@ HIGH      ~/.cursor/mcp.json
 
 ...
 
-Run 'devsec explain <id>' for details on any finding.
-Run 'devsec whitelist add <id>' to suppress known-safe findings.
-Run 'devsec migrate <file>' to move secrets to 1Password.
+Run 'damit explain <id>' for details on any finding.
+Run 'damit whitelist add <id>' to suppress known-safe findings.
+Run 'damit migrate <file>' to move secrets to 1Password.
 ```
 
 ## Menubar App (Paid)
@@ -433,7 +433,7 @@ Run 'devsec migrate <file>' to move secrets to 1Password.
 **Popover (click icon):**
 ```
 ┌──────────────────────────────────┐
-│ devsec                  ● green  │
+│ damit                  ● green  │
 ├──────────────────────────────────┤
 │ Last scan: 2 minutes ago         │
 │ Next scan: in 3 minutes          │
@@ -487,10 +487,10 @@ Run 'devsec migrate <file>' to move secrets to 1Password.
 
 ## Migration Feature
 
-The `devsec migrate` command helps move plaintext secrets to 1Password:
+The `damit migrate` command helps move plaintext secrets to 1Password:
 
 ```bash
-$ devsec migrate ~/Projects/myapp/.env
+$ damit migrate ~/Projects/myapp/.env
 
 Scanning .env for secrets...
 Found 4 values, 3 appear to be real secrets.
@@ -528,7 +528,7 @@ Updated .env:
   SECRET_KEY=django-insecure-abc123
 ```
 
-Requires: 1Password CLI (`op`) installed and authenticated. If not present, `devsec migrate` prints setup instructions instead.
+Requires: 1Password CLI (`op`) installed and authenticated. If not present, `damit migrate` prints setup instructions instead.
 
 ## Tech Stack
 
@@ -537,7 +537,7 @@ Requires: 1Password CLI (`op`) installed and authenticated. If not present, `dev
 - **Package structure:** Swift Package Manager (SPM)
 - **Spotlight:** Foundation's `NSMetadataQuery` or shell `mdfind`
 - **Pattern matching:** Swift Regex (Swift 5.7+)
-- **Data persistence:** JSON files in `~/.config/devsec/`
+- **Data persistence:** JSON files in `~/.config/damit/`
 - **1Password integration:** Shell out to `op` CLI
 - **Minimum macOS:** 14.0 (Sonoma) -- for latest SwiftUI menubar APIs
 - **Distribution:** Homebrew (CLI), Mac App Store (menubar app)

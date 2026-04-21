@@ -8,7 +8,7 @@ struct WhitelistManagerTests {
     // MARK: - Helpers
 
     private func makeManager(configPath: String? = nil) -> WhitelistManager {
-        let path = configPath ?? (NSTemporaryDirectory() + "devsec-test-\(UUID().uuidString).json")
+        let path = configPath ?? (NSTemporaryDirectory() + "damit-test-\(UUID().uuidString).json")
         return WhitelistManager(configPath: path)
     }
 
@@ -205,7 +205,7 @@ struct WhitelistManagerTests {
 
     @Test("Persists and loads config from disk")
     func persistsAndLoads() throws {
-        let path = NSTemporaryDirectory() + "devsec-persist-\(UUID().uuidString).json"
+        let path = NSTemporaryDirectory() + "damit-persist-\(UUID().uuidString).json"
 
         let manager1 = WhitelistManager(configPath: path)
         manager1.addFile("/some/file.txt")

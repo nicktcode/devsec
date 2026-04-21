@@ -1,16 +1,16 @@
-# devsec Phase 1: Core Framework + MVP Scanners + CLI
+# damit Phase 1: Core Framework + MVP Scanners + CLI
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a working CLI tool that scans a macOS developer workstation for exposed secrets across environment files, shell history, SSH keys, documents, AI tool configs, and credential files -- with full-disk Spotlight-based discovery, risk classification, whitelisting, and human-readable output.
 
-**Architecture:** Swift Package Manager monorepo with a `DevsecCore` library (detection engine, pattern database, Spotlight wrapper, risk classifier, whitelist manager) consumed by a `devsec-cli` executable. Each scanner is an independent module conforming to a `Scanner` protocol. Spotlight is the primary discovery mechanism with `find`+`grep` fallback when Spotlight is unavailable.
+**Architecture:** Swift Package Manager monorepo with a `DevsecCore` library (detection engine, pattern database, Spotlight wrapper, risk classifier, whitelist manager) consumed by a `damit-cli` executable. Each scanner is an independent module conforming to a `Scanner` protocol. Spotlight is the primary discovery mechanism with `find`+`grep` fallback when Spotlight is unavailable.
 
 **Tech Stack:** Swift 6.0, Swift Package Manager, Foundation framework (NSMetadataQuery/Process for mdfind), Swift Regex, macOS 14.0+
 
 **Phase 1 scope (this plan):** Pattern database, Spotlight engine, core framework, 6 scanners (env, history, SSH, documents, AI tools, credential files), risk classifier, whitelist manager, CLI with scan/whitelist/status commands, text+JSON output.
 
-**Deferred to Phase 2:** Git repo scanner, port scanner, clipboard scanner, permission scanner, `devsec migrate` command.
+**Deferred to Phase 2:** Git repo scanner, port scanner, clipboard scanner, permission scanner, `damit migrate` command.
 
 **Deferred to Phase 3:** Menubar app (SwiftUI, notifications, settings, App Store distribution).
 
@@ -19,7 +19,7 @@
 ## File Structure
 
 ```
-devsec/
+damit/
 ├── Package.swift
 ├── Sources/
 │   ├── DevsecCore/
@@ -38,11 +38,11 @@ devsec/
 │   │       ├── DocumentScanner.swift
 │   │       ├── AIToolScanner.swift
 │   │       └── CredentialFileScanner.swift
-│   └── devsec-cli/
+│   └── damit-cli/
 │       ├── DevsecCLI.swift            # ArgumentParser entry point + subcommands
-│       ├── ScanCommand.swift          # devsec scan [--modules] [--format] [--show-whitelisted]
-│       ├── WhitelistCommand.swift     # devsec whitelist add/remove/list
-│       ├── StatusCommand.swift        # devsec status
+│       ├── ScanCommand.swift          # damit scan [--modules] [--format] [--show-whitelisted]
+│       ├── WhitelistCommand.swift     # damit whitelist add/remove/list
+│       ├── StatusCommand.swift        # damit status
 │       └── Formatters/
 │           ├── TextFormatter.swift    # Human-readable terminal output
 │           └── JSONFormatter.swift    # Machine-readable JSON output
@@ -61,9 +61,9 @@ devsec/
 │       └── CredentialFileScannerTests.swift
 └── docs/
     ├── specs/
-    │   └── 2026-04-16-devsec-design.md
+    │   └── 2026-04-16-damit-design.md
     └── plans/
-        └── 2026-04-16-devsec-phase1.md
+        └── 2026-04-16-damit-phase1.md
 ```
 
 ---
@@ -74,12 +74,12 @@ devsec/
 - Create: `Package.swift`
 - Create: `Sources/DevsecCore/Scanner.swift`
 - Create: `Sources/DevsecCore/Finding.swift`
-- Create: `Sources/devsec-cli/DevsecCLI.swift`
+- Create: `Sources/damit-cli/DevsecCLI.swift`
 
 - [ ] **Step 1: Initialize git repo**
 
 ```bash
-cd /Users/nick/Repos/devsec
+cd /Users/nick/Repos/damit
 git init
 ```
 
@@ -106,7 +106,7 @@ Create `Package.swift`:
 import PackageDescription
 
 let package = Package(
-    name: "devsec",
+    name: "damit",
     platforms: [
         .macOS(.v14)
     ],
@@ -119,12 +119,12 @@ let package = Package(
             path: "Sources/DevsecCore"
         ),
         .executableTarget(
-            name: "devsec-cli",
+            name: "damit-cli",
             dependencies: [
                 "DevsecCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
-            path: "Sources/devsec-cli"
+            path: "Sources/damit-cli"
         ),
         .testTarget(
             name: "DevsecCoreTests",
@@ -244,7 +244,7 @@ public protocol Scanner: Sendable {
 
 - [ ] **Step 6: Create minimal CLI entry point**
 
-Create `Sources/devsec-cli/DevsecCLI.swift`:
+Create `Sources/damit-cli/DevsecCLI.swift`:
 
 ```swift
 import ArgumentParser
@@ -252,7 +252,7 @@ import ArgumentParser
 @main
 struct DevsecCLI: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "devsec",
+        commandName: "damit",
         abstract: "Developer workstation security auditor",
         version: "0.1.0",
         subcommands: [ScanCommand.self, StatusCommand.self],
@@ -261,7 +261,7 @@ struct DevsecCLI: ParsableCommand {
 }
 ```
 
-Create `Sources/devsec-cli/ScanCommand.swift`:
+Create `Sources/damit-cli/ScanCommand.swift`:
 
 ```swift
 import ArgumentParser
@@ -274,13 +274,13 @@ struct ScanCommand: ParsableCommand {
     )
 
     func run() throws {
-        print("devsec v0.1.0 -- scanning your machine")
+        print("damit v0.1.0 -- scanning your machine")
         print("(not yet implemented)")
     }
 }
 ```
 
-Create `Sources/devsec-cli/StatusCommand.swift`:
+Create `Sources/damit-cli/StatusCommand.swift`:
 
 ```swift
 import ArgumentParser
@@ -288,11 +288,11 @@ import ArgumentParser
 struct StatusCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "status",
-        abstract: "Check devsec status and Spotlight health"
+        abstract: "Check damit status and Spotlight health"
     )
 
     func run() throws {
-        print("devsec status: ok")
+        print("damit status: ok")
     }
 }
 ```
@@ -300,18 +300,18 @@ struct StatusCommand: ParsableCommand {
 - [ ] **Step 7: Verify the project builds**
 
 ```bash
-cd /Users/nick/Repos/devsec
+cd /Users/nick/Repos/damit
 swift build
 ```
 
-Expected: builds successfully, produces `devsec-cli` binary.
+Expected: builds successfully, produces `damit-cli` binary.
 
 - [ ] **Step 8: Verify the CLI runs**
 
 ```bash
-swift run devsec-cli
-swift run devsec-cli status
-swift run devsec-cli --version
+swift run damit-cli
+swift run damit-cli status
+swift run damit-cli --version
 ```
 
 Expected: prints placeholder messages and version 0.1.0.
@@ -369,14 +369,14 @@ struct PatternDatabaseTests {
     }
 
     @Test func detectsStripeKey() {
-        // devsec-test-value: sk_test_ matches same pattern as sk_live_
+        // damit-test-value: sk_test_ matches same pattern as sk_live_
         let matches = PatternDatabase.findSecrets(in: "sk_test_FAKE_TEST_VALUE_devsec")
         #expect(matches.count == 1)
         #expect(matches[0].patternName == "Stripe Secret Key")
     }
 
     @Test func detectsSlackToken() {
-        // devsec-test-value: two-segment form matches xox[bprs]-[0-9A-Za-z\-]{20,}
+        // damit-test-value: two-segment form matches xox[bprs]-[0-9A-Za-z\-]{20,}
         let matches = PatternDatabase.findSecrets(in: "token=xoxb-fake-devsectest0000000")
         #expect(matches.count == 1)
         #expect(matches[0].patternName == "Slack Token")
@@ -389,14 +389,14 @@ struct PatternDatabaseTests {
     }
 
     @Test func detectsSendGridKey() {
-        // devsec-test-value: lowercase-only segments avoid GitHub's SendGrid scanner heuristic
+        // damit-test-value: lowercase-only segments avoid GitHub's SendGrid scanner heuristic
         let matches = PatternDatabase.findSecrets(in: "SG.abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz0123456789abcdefg")
         #expect(matches.count == 1)
         #expect(matches[0].patternName == "SendGrid API Key")
     }
 
     @Test func detectsTwilioKey() {
-        // devsec-test-value: plain 32 hex chars match Twilio auth token pattern without SK prefix
+        // damit-test-value: plain 32 hex chars match Twilio auth token pattern without SK prefix
         let matches = PatternDatabase.findSecrets(in: "twilio_auth=0123456789abcdef0123456789abcdef")
         #expect(matches.count == 1)
         #expect(matches[0].patternName == "Twilio API Key")
@@ -530,7 +530,7 @@ struct PatternDatabaseTests {
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /Users/nick/Repos/devsec
+cd /Users/nick/Repos/damit
 swift test --filter PatternDatabaseTests
 ```
 
@@ -720,13 +720,13 @@ struct SpotlightEngineTests {
     @Test func findByFilenameReturnsResults() async throws {
         // Create a temp file to find
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        let testFile = tempDir.appendingPathComponent(".env.test-devsec")
+        let testFile = tempDir.appendingPathComponent(".env.test-damit")
         try "TEST_KEY=value".write(to: testFile, atomically: true, encoding: .utf8)
 
         // Give Spotlight a moment to index (fallback will find it regardless)
-        let results = await SpotlightEngine.findFiles(named: ".env.test-devsec", searchPath: tempDir.path)
+        let results = await SpotlightEngine.findFiles(named: ".env.test-damit", searchPath: tempDir.path)
 
         // Clean up
         try? FileManager.default.removeItem(at: tempDir)
@@ -738,7 +738,7 @@ struct SpotlightEngineTests {
 
     @Test func findByContentReturnsResults() async throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let testFile = tempDir.appendingPathComponent("test-secret.txt")
         try "-----BEGIN RSA PRIVATE KEY-----".write(to: testFile, atomically: true, encoding: .utf8)
@@ -755,7 +755,7 @@ struct SpotlightEngineTests {
 
     @Test func fallbackFindByFilenameWorks() async throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let testFile = tempDir.appendingPathComponent(".env.fallback-test")
         try "SECRET=value".write(to: testFile, atomically: true, encoding: .utf8)
@@ -769,7 +769,7 @@ struct SpotlightEngineTests {
 
     @Test func fallbackFindByContentWorks() async throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let testFile = tempDir.appendingPathComponent("secret-test.txt")
         try "AKIA1234567890ABCDEF".write(to: testFile, atomically: true, encoding: .utf8)
@@ -1263,9 +1263,9 @@ public enum RiskClassifier {
             return "Move this file to a secure location or delete it. Secrets should not live in Desktop/Downloads."
         }
         if !isInGitignore {
-            return "Add this file to .gitignore and migrate secrets to 1Password (op:// references). Run: devsec migrate \(filePath)"
+            return "Add this file to .gitignore and migrate secrets to 1Password (op:// references). Run: damit migrate \(filePath)"
         }
-        return "Migrate secrets to 1Password references (op://) to eliminate plaintext on disk. Run: devsec migrate \(filePath)"
+        return "Migrate secrets to 1Password references (op://) to eliminate plaintext on disk. Run: damit migrate \(filePath)"
     }
 }
 ```
@@ -1307,7 +1307,7 @@ struct WhitelistManagerTests {
 
     func makeTempConfig() throws -> (URL, WhitelistManager) {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let configFile = tempDir.appendingPathComponent("config.json")
         let manager = WhitelistManager(configPath: configFile.path)
@@ -1441,7 +1441,7 @@ public final class WhitelistManager: Sendable {
 
     public init(configPath: String? = nil) {
         let path = configPath ?? {
-            let configDir = NSHomeDirectory() + "/.config/devsec"
+            let configDir = NSHomeDirectory() + "/.config/damit"
             return configDir + "/config.json"
         }()
         self.configPath = path
@@ -1631,7 +1631,7 @@ struct FindingStoreTests {
 
     func makeTempStore() throws -> (URL, FindingStore) {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let storePath = tempDir.appendingPathComponent("findings.json")
         let store = FindingStore(storePath: storePath.path)
@@ -1716,7 +1716,7 @@ public final class FindingStore: Sendable {
 
     public init(storePath: String? = nil) {
         let path = storePath ?? {
-            let dataDir = NSHomeDirectory() + "/.config/devsec"
+            let dataDir = NSHomeDirectory() + "/.config/damit"
             return dataDir + "/findings.json"
         }()
         self.storePath = path
@@ -1812,7 +1812,7 @@ struct EnvFileScannerTests {
 
     func createTempEnvFile(content: String) throws -> (URL, String) {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let envFile = tempDir.appendingPathComponent(".env")
         try content.write(to: envFile, atomically: true, encoding: .utf8)
@@ -2058,7 +2058,7 @@ struct HistoryScannerTests {
 
     func createTempHistoryFile(content: String) throws -> (URL, String) {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let histFile = tempDir.appendingPathComponent(".zsh_history")
         try content.write(to: histFile, atomically: true, encoding: .utf8)
@@ -2248,7 +2248,7 @@ struct SSHScannerTests {
 
     @Test func detectsKeyFileByContent() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -2262,7 +2262,7 @@ struct SSHScannerTests {
 
     @Test func detectsBadPermissions() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -2279,7 +2279,7 @@ struct SSHScannerTests {
 
     @Test func detectsKeyInUnsafeLocation() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         let downloadsDir = tempDir.appendingPathComponent("Downloads")
         try FileManager.default.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -2489,7 +2489,7 @@ struct DocumentScannerTests {
 
     @Test func detectsSecretInTextFile() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -2503,7 +2503,7 @@ struct DocumentScannerTests {
 
     @Test func skipsCleanFiles() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -2530,7 +2530,7 @@ struct AIToolScannerTests {
 
     @Test func detectsHardcodedKeyInClaudeConfig() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         let claudeDir = tempDir.appendingPathComponent(".claude")
         try FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -2551,7 +2551,7 @@ struct AIToolScannerTests {
 
     @Test func acceptsOpReferencesInConfig() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         let claudeDir = tempDir.appendingPathComponent(".claude")
         try FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -2593,7 +2593,7 @@ struct CredentialFileScannerTests {
 
     @Test func detectsPasswordExportCSV() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -2607,7 +2607,7 @@ struct CredentialFileScannerTests {
 
     @Test func detects1PasswordExport() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -2621,7 +2621,7 @@ struct CredentialFileScannerTests {
 
     @Test func skipsNonCredentialFiles() throws {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("devsec-test-\(UUID().uuidString)")
+            .appendingPathComponent("damit-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -3036,12 +3036,12 @@ git commit -m "feat: add scan orchestrator that runs all modules with whitelist 
 ## Task 12: CLI Output Formatters
 
 **Files:**
-- Create: `Sources/devsec-cli/Formatters/TextFormatter.swift`
-- Create: `Sources/devsec-cli/Formatters/JSONFormatter.swift`
+- Create: `Sources/damit-cli/Formatters/TextFormatter.swift`
+- Create: `Sources/damit-cli/Formatters/JSONFormatter.swift`
 
 - [ ] **Step 1: Implement TextFormatter**
 
-Create `Sources/devsec-cli/Formatters/TextFormatter.swift`:
+Create `Sources/damit-cli/Formatters/TextFormatter.swift`:
 
 ```swift
 import DevsecCore
@@ -3050,7 +3050,7 @@ enum TextFormatter {
     static func format(_ result: FullScanResult, showWhitelisted: Bool = false) -> String {
         var output = ""
 
-        output += "devsec v0.1.0 -- scan complete\n\n"
+        output += "damit v0.1.0 -- scan complete\n\n"
 
         // Module summary
         for scanResult in result.results {
@@ -3091,7 +3091,7 @@ enum TextFormatter {
         if result.findings.isEmpty {
             output += "No findings. Your machine looks clean.\n"
         } else {
-            output += "Run 'devsec whitelist add <finding-id>' to suppress known-safe findings.\n"
+            output += "Run 'damit whitelist add <finding-id>' to suppress known-safe findings.\n"
         }
 
         return output
@@ -3116,7 +3116,7 @@ enum TextFormatter {
 
 - [ ] **Step 2: Implement JSONFormatter**
 
-Create `Sources/devsec-cli/Formatters/JSONFormatter.swift`:
+Create `Sources/damit-cli/Formatters/JSONFormatter.swift`:
 
 ```swift
 import Foundation
@@ -3172,7 +3172,7 @@ Expected: builds successfully.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/devsec-cli/Formatters/
+git add Sources/damit-cli/Formatters/
 git commit -m "feat: add text and JSON output formatters for CLI"
 ```
 
@@ -3181,13 +3181,13 @@ git commit -m "feat: add text and JSON output formatters for CLI"
 ## Task 13: Wire Up CLI Commands
 
 **Files:**
-- Modify: `Sources/devsec-cli/ScanCommand.swift`
-- Modify: `Sources/devsec-cli/StatusCommand.swift`
-- Create: `Sources/devsec-cli/WhitelistCommand.swift`
+- Modify: `Sources/damit-cli/ScanCommand.swift`
+- Modify: `Sources/damit-cli/StatusCommand.swift`
+- Create: `Sources/damit-cli/WhitelistCommand.swift`
 
 - [ ] **Step 1: Implement full ScanCommand**
 
-Replace `Sources/devsec-cli/ScanCommand.swift`:
+Replace `Sources/damit-cli/ScanCommand.swift`:
 
 ```swift
 import ArgumentParser
@@ -3220,7 +3220,7 @@ struct ScanCommand: AsyncParsableCommand {
         }
 
         if format == "text" {
-            print("devsec v0.1.0 -- scanning your machine")
+            print("damit v0.1.0 -- scanning your machine")
             let health = await SpotlightEngine.checkHealth()
             print("Using \(health.available ? "Spotlight (indexed, fast mode)" : "fallback mode (slower)")\n")
         }
@@ -3240,7 +3240,7 @@ struct ScanCommand: AsyncParsableCommand {
 
 - [ ] **Step 2: Implement full StatusCommand**
 
-Replace `Sources/devsec-cli/StatusCommand.swift`:
+Replace `Sources/damit-cli/StatusCommand.swift`:
 
 ```swift
 import ArgumentParser
@@ -3250,20 +3250,20 @@ import Foundation
 struct StatusCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "status",
-        abstract: "Check devsec status and Spotlight health"
+        abstract: "Check damit status and Spotlight health"
     )
 
     func run() async throws {
-        print("devsec v0.1.0\n")
+        print("damit v0.1.0\n")
 
         let health = await SpotlightEngine.checkHealth()
         print("Spotlight: \(health.available ? "active" : "unavailable") -- \(health.message)")
 
-        let configPath = NSHomeDirectory() + "/.config/devsec/config.json"
+        let configPath = NSHomeDirectory() + "/.config/damit/config.json"
         let configExists = FileManager.default.fileExists(atPath: configPath)
         print("Config: \(configExists ? configPath : "not found (using defaults)")")
 
-        let storePath = NSHomeDirectory() + "/.config/devsec/findings.json"
+        let storePath = NSHomeDirectory() + "/.config/damit/findings.json"
         let storeExists = FileManager.default.fileExists(atPath: storePath)
         print("Finding store: \(storeExists ? "has previous scan data" : "no previous scans")")
     }
@@ -3272,7 +3272,7 @@ struct StatusCommand: AsyncParsableCommand {
 
 - [ ] **Step 3: Implement WhitelistCommand**
 
-Create `Sources/devsec-cli/WhitelistCommand.swift`:
+Create `Sources/damit-cli/WhitelistCommand.swift`:
 
 ```swift
 import ArgumentParser
@@ -3334,7 +3334,7 @@ struct WhitelistCommand: ParsableCommand {
 
 - [ ] **Step 4: Update DevsecCLI to include WhitelistCommand**
 
-Replace `Sources/devsec-cli/DevsecCLI.swift`:
+Replace `Sources/damit-cli/DevsecCLI.swift`:
 
 ```swift
 import ArgumentParser
@@ -3342,7 +3342,7 @@ import ArgumentParser
 @main
 struct DevsecCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "devsec",
+        commandName: "damit",
         abstract: "Developer workstation security auditor",
         version: "0.1.0",
         subcommands: [ScanCommand.self, WhitelistCommand.self, StatusCommand.self],
@@ -3355,9 +3355,9 @@ struct DevsecCLI: AsyncParsableCommand {
 
 ```bash
 swift build
-swift run devsec-cli status
-swift run devsec-cli --version
-swift run devsec-cli whitelist list
+swift run damit-cli status
+swift run damit-cli --version
+swift run damit-cli whitelist list
 ```
 
 Expected: all commands work, version prints 0.1.0, whitelist shows empty, status shows Spotlight health.
@@ -3365,7 +3365,7 @@ Expected: all commands work, version prints 0.1.0, whitelist shows empty, status
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/devsec-cli/
+git add Sources/damit-cli/
 git commit -m "feat: wire up CLI with scan, whitelist, and status commands"
 ```
 
@@ -3384,7 +3384,7 @@ Expected: all tests pass.
 - [ ] **Step 2: Run a real scan on your machine**
 
 ```bash
-swift run devsec-cli scan
+swift run damit-cli scan
 ```
 
 Review the output. It will likely find real findings on your machine. This is expected and validates the tool works.
@@ -3392,7 +3392,7 @@ Review the output. It will likely find real findings on your machine. This is ex
 - [ ] **Step 3: Test JSON output**
 
 ```bash
-swift run devsec-cli scan --format json | head -30
+swift run damit-cli scan --format json | head -30
 ```
 
 Expected: valid JSON output with findings.
@@ -3400,7 +3400,7 @@ Expected: valid JSON output with findings.
 - [ ] **Step 4: Test module filtering**
 
 ```bash
-swift run devsec-cli scan --modules ssh
+swift run damit-cli scan --modules ssh
 ```
 
 Expected: only SSH scanner results.
@@ -3409,10 +3409,10 @@ Expected: only SSH scanner results.
 
 ```bash
 # Pick a finding ID from the scan output and whitelist it
-swift run devsec-cli whitelist add "some-finding-id"
-swift run devsec-cli whitelist list
+swift run damit-cli whitelist add "some-finding-id"
+swift run damit-cli whitelist list
 # Re-scan -- the whitelisted finding should be gone
-swift run devsec-cli scan
+swift run damit-cli scan
 ```
 
 - [ ] **Step 6: Fix any issues found during manual testing**
@@ -3438,11 +3438,11 @@ git commit -m "fix: address issues found during integration testing"
 Create `README.md`:
 
 ```markdown
-# devsec
+# damit
 
 A macOS security auditor for developer workstations. Finds exposed secrets, API keys, passwords, and credentials across your entire machine -- not just code repos.
 
-Unlike code scanners (gitleaks, truffleHog) that only check git history, devsec scans everything: environment files, shell history, SSH keys, documents (PDFs, Word, Notes), AI tool configs, and credential exports.
+Unlike code scanners (gitleaks, truffleHog) that only check git history, damit scans everything: environment files, shell history, SSH keys, documents (PDFs, Word, Notes), AI tool configs, and credential exports.
 
 ## What it finds
 
@@ -3455,7 +3455,7 @@ Unlike code scanners (gitleaks, truffleHog) that only check git history, devsec 
 
 ## How it works
 
-devsec uses macOS Spotlight for instant full-disk search. It finds secrets by file content, not just filename -- a private key in `~/Documents/backup.txt` gets caught. Falls back to `find`+`grep` automatically if Spotlight is unavailable.
+damit uses macOS Spotlight for instant full-disk search. It finds secrets by file content, not just filename -- a private key in `~/Documents/backup.txt` gets caught. Falls back to `find`+`grep` automatically if Spotlight is unavailable.
 
 Every finding gets two risk scores:
 - **Git leak risk** -- could this end up in a commit?
@@ -3464,35 +3464,35 @@ Every finding gets two risk scores:
 ## Install
 
 ```bash
-brew install devsec
+brew install damit
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/yourusername/devsec.git
-cd devsec
+git clone https://github.com/yourusername/damit.git
+cd damit
 swift build -c release
-cp .build/release/devsec-cli /usr/local/bin/devsec
+cp .build/release/damit-cli /usr/local/bin/damit
 ```
 
 ## Usage
 
 ```bash
 # Scan everything
-devsec scan
+damit scan
 
 # Scan specific modules
-devsec scan --modules ssh,env,ai-tools
+damit scan --modules ssh,env,ai-tools
 
 # JSON output
-devsec scan --format json
+damit scan --format json
 
 # Whitelist a known-safe finding
-devsec whitelist add "finding-id"
+damit whitelist add "finding-id"
 
 # Check system status
-devsec status
+damit status
 ```
 
 ## Whitelisting
@@ -3500,10 +3500,10 @@ devsec status
 First run will be noisy. Review findings and whitelist what is intentional:
 
 ```bash
-devsec whitelist add "env:/Users/you/project/.env:3:AWS Access Key"
+damit whitelist add "env:/Users/you/project/.env:3:AWS Access Key"
 ```
 
-Configure in `~/.config/devsec/config.json`:
+Configure in `~/.config/damit/config.json`:
 
 ```json
 {
@@ -3513,7 +3513,7 @@ Configure in `~/.config/devsec/config.json`:
 }
 ```
 
-devsec never auto-whitelists. Every plaintext secret on disk is a finding -- the only green state is a proper secret manager reference (`op://`).
+damit never auto-whitelists. Every plaintext secret on disk is a finding -- the only green state is a proper secret manager reference (`op://`).
 
 ## Modules
 

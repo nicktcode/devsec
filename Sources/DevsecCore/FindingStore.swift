@@ -23,7 +23,7 @@ public final class FindingStore: Sendable {
             self.storePath = path
         } else {
             let home = FileManager.default.homeDirectoryForCurrentUser.path
-            self.storePath = "\(home)/.config/devsec/findings.json"
+            self.storePath = "\(home)/.config/damit/findings.json"
         }
 
         // Auto-load on init; ignore errors (file may not exist yet).

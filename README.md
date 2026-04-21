@@ -1,4 +1,4 @@
-# devsec
+# damit
 
 A macOS security auditor for developer workstations. Finds exposed secrets, API keys, passwords, and credentials across the entire machine - not just code repositories.
 
@@ -13,7 +13,7 @@ A macOS security auditor for developer workstations. Finds exposed secrets, API 
 
 ## How it works
 
-devsec uses macOS Spotlight to perform instant full-disk searches without traversing the filesystem manually. It finds secrets by content pattern, not just filename. If Spotlight is unavailable or restricted, it falls back to `find` + `grep`.
+damit uses macOS Spotlight to perform instant full-disk searches without traversing the filesystem manually. It finds secrets by content pattern, not just filename. If Spotlight is unavailable or restricted, it falls back to `find` + `grep`.
 
 Each finding receives two independent risk scores:
 
@@ -25,10 +25,10 @@ Each finding receives two independent risk scores:
 ### Build from source
 
 ```sh
-git clone https://github.com/nickthommen/devsec
-cd devsec
+git clone https://github.com/nickthommen/damit
+cd damit
 swift build -c release
-cp .build/release/devsec-cli /usr/local/bin/devsec
+cp .build/release/damit-cli /usr/local/bin/damit
 ```
 
 Homebrew tap coming soon.
@@ -38,31 +38,31 @@ Homebrew tap coming soon.
 Run a full scan:
 
 ```sh
-devsec scan
+damit scan
 ```
 
 Scan specific modules only:
 
 ```sh
-devsec scan --modules ssh,env,ai-tools
+damit scan --modules ssh,env,ai-tools
 ```
 
 Output results as JSON:
 
 ```sh
-devsec scan --format json
+damit scan --format json
 ```
 
 Whitelist a finding by ID:
 
 ```sh
-devsec whitelist add "finding-id"
+damit whitelist add "finding-id"
 ```
 
 Show current configuration and whitelist summary:
 
 ```sh
-devsec status
+damit status
 ```
 
 ## Whitelisting
@@ -70,10 +70,10 @@ devsec status
 The first run will surface a number of findings that are intentional - test credentials, local-only keys, demo configs. Use whitelisting to mark these as reviewed so they no longer appear in subsequent scans.
 
 ```sh
-devsec whitelist add "finding-id"
+damit whitelist add "finding-id"
 ```
 
-The whitelist is stored at `~/.config/devsec/whitelist.json`. Findings are matched by a stable ID derived from the file path and matched pattern, so the whitelist remains valid across runs as long as the file is not moved.
+The whitelist is stored at `~/.config/damit/whitelist.json`. Findings are matched by a stable ID derived from the file path and matched pattern, so the whitelist remains valid across runs as long as the file is not moved.
 
 ## Modules
 

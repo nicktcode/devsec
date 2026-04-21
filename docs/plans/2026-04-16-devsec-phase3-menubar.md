@@ -1,4 +1,4 @@
-# devsec Phase 3: Menubar App
+# damit Phase 3: Menubar App
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,11 +13,11 @@
 ## File Structure
 
 ```
-devsec/
+damit/
 ├── Package.swift                          # Updated: add DevsecApp executable target
 ├── Sources/
 │   ├── DevsecCore/                        # Existing - no changes
-│   ├── devsec-cli/                        # Existing - no changes
+│   ├── damit-cli/                        # Existing - no changes
 │   └── DevsecApp/
 │       ├── DevsecApp.swift                # @main, MenuBarExtra entry point
 │       ├── AppState.swift                 # ObservableObject: scan state, findings, schedule
@@ -167,7 +167,7 @@ struct PopoverView: View {
     @ObservedObject var appState: AppState
 
     var body: some View {
-        Text("devsec")
+        Text("damit")
             .padding()
     }
 }
@@ -418,7 +418,7 @@ final class NotificationService {
 
     func sendNewFindingsNotification(count: Int, critical: Int) {
         let content = UNMutableNotificationContent()
-        content.title = "devsec"
+        content.title = "damit"
 
         if critical > 0 {
             content.body = "\(count) new finding\(count == 1 ? "" : "s") detected (\(critical) critical)"
@@ -429,7 +429,7 @@ final class NotificationService {
         }
 
         let request = UNNotificationRequest(
-            identifier: "devsec-scan-\(UUID().uuidString)",
+            identifier: "damit-scan-\(UUID().uuidString)",
             content: content,
             trigger: nil // deliver immediately
         )
@@ -638,7 +638,7 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack {
-            Text("devsec")
+            Text("damit")
                 .font(.headline)
             Spacer()
             statusIndicator
@@ -788,7 +788,7 @@ struct PopoverView: View {
                 NSApplication.shared.terminate(nil)
             } label: {
                 HStack {
-                    Text("Quit devsec")
+                    Text("Quit damit")
                     Spacer()
                 }
             }

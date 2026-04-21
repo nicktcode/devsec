@@ -9,7 +9,7 @@ enum TextFormatter {
         var lines: [String] = []
 
         // Header
-        lines.append("devsec v0.1.0 -- scan complete")
+        lines.append("damit v0.1.0 -- scan complete")
         lines.append(String(repeating: "=", count: 60))
         lines.append("")
 
@@ -85,7 +85,7 @@ enum TextFormatter {
         lines.append(String(repeating: "-", count: 60))
         lines.append(String(format: "Scan completed in %.2fs", result.totalDuration))
         lines.append("")
-        lines.append("Tip: whitelist a finding with: devsec whitelist add <id>")
+        lines.append("Tip: whitelist a finding with: damit whitelist add <id>")
 
         return lines.joined(separator: "\n")
     }

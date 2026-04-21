@@ -26,7 +26,7 @@ struct ScanCommand: AsyncParsableCommand {
 
         // Print header and Spotlight health in text mode
         if isText {
-            print("devsec v0.1.0")
+            print("damit v0.1.0")
             let health = await SpotlightEngine.checkHealth()
             if health.available {
                 print("Spotlight: enabled")

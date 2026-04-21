@@ -8,7 +8,7 @@ struct FindingStoreTests {
     // MARK: - Helpers
 
     private func tempStorePath() -> String {
-        NSTemporaryDirectory() + "devsec-findingstore-\(UUID().uuidString).json"
+        NSTemporaryDirectory() + "damit-findingstore-\(UUID().uuidString).json"
     }
 
     private func makeFinding(id: String = "test-\(UUID().uuidString)") -> Finding {

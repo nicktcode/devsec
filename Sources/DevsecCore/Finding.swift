@@ -43,6 +43,7 @@ public enum ScanModule: String, Codable, Sendable, CaseIterable {
     case documents         = "documents"
     case aiTools           = "ai-tools"
     case credentialFiles   = "credential-files"
+    case appleNotes        = "apple-notes"
     case git               = "git"
     case ports             = "ports"
     case clipboard         = "clipboard"

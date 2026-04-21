@@ -47,7 +47,7 @@ public final class WhitelistManager: Sendable {
         if let path = configPath {
             self.configPath = path
         } else {
-            self.configPath = NSHomeDirectory() + "/.config/devsec/config.json"
+            self.configPath = NSHomeDirectory() + "/.config/damit/config.json"
         }
         self.config = WhitelistConfig()
     }
@@ -162,12 +162,33 @@ public final class WhitelistManager: Sendable {
         if let path = finding.filePath {
             if isFileWhitelisted(path) { return true }
             if isDirWhitelisted(path) { return true }
+            if WhitelistManager.matchesBuiltInSafePath(path) { return true }
         }
 
         // Check secret preview against safe patterns
         if isSafePattern(finding.secretPreview) { return true }
 
         return false
+    }
+
+    /// Always-on built-in suppressions. These match files that are known to contain
+    /// synthetic secret fixtures by construction. notably damit's own test suite,
+    /// which has to include real-shaped API keys to verify the scanners.
+    ///
+    /// These are intentionally not user-configurable: they exist so damit doesn't
+    /// flag itself when scanning a developer's home directory that happens to contain
+    /// a clone of this repo.
+    private static let builtInSafePathFragments: [String] = [
+        // Matches whether the repo directory is named "damit" (the
+        // rebranded form) or "devsec" (the original). Users who cloned
+        // before the rename still have /devsec/ on disk. Both should
+        // self-whitelist.
+        "/damit/Tests/DevsecCoreTests/",
+        "/devsec/Tests/DevsecCoreTests/",
+    ]
+
+    static func matchesBuiltInSafePath(_ path: String) -> Bool {
+        builtInSafePathFragments.contains { path.contains($0) }
     }
 
     public func filterFindings(_ findings: [Finding]) -> [Finding] {

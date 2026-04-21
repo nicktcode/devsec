@@ -12,6 +12,9 @@ public struct FullScanResult: Sendable {
     public let mediumCount: Int
     public let lowCount: Int
 
+    /// Aggregated iCloud placeholder paths across all modules that were not scanned.
+    public let offloadedPaths: [String]
+
     public init(
         results: [ScanResult],
         findings: [Finding],
@@ -20,7 +23,8 @@ public struct FullScanResult: Sendable {
         criticalCount: Int,
         highCount: Int,
         mediumCount: Int,
-        lowCount: Int
+        lowCount: Int,
+        offloadedPaths: [String] = []
     ) {
         self.results = results
         self.findings = findings
@@ -30,7 +34,10 @@ public struct FullScanResult: Sendable {
         self.highCount = highCount
         self.mediumCount = mediumCount
         self.lowCount = lowCount
+        self.offloadedPaths = offloadedPaths
     }
+
+    public var offloadedCount: Int { offloadedPaths.count }
 }
 
 // MARK: - ScanOrchestrator
@@ -104,6 +111,15 @@ public final class ScanOrchestrator: Sendable {
         let mediumCount = sorted.filter { $0.severity == .medium }.count
         let lowCount = sorted.filter { $0.severity == .low }.count
 
+        // Deduplicate offloaded paths across modules (a file can match multiple scanners).
+        var seenOffloaded = Set<String>()
+        var offloadedPaths: [String] = []
+        for result in results {
+            for path in result.offloadedPaths where seenOffloaded.insert(path).inserted {
+                offloadedPaths.append(path)
+            }
+        }
+
         return FullScanResult(
             results: results,
             findings: sorted,
@@ -112,7 +128,8 @@ public final class ScanOrchestrator: Sendable {
             criticalCount: criticalCount,
             highCount: highCount,
             mediumCount: mediumCount,
-            lowCount: lowCount
+            lowCount: lowCount,
+            offloadedPaths: offloadedPaths
         )
     }
 
@@ -137,6 +154,9 @@ public final class ScanOrchestrator: Sendable {
         }
         if modules.contains(.credentialFiles) {
             scanners.append(CredentialFileScanner())
+        }
+        if modules.contains(.appleNotes) {
+            scanners.append(AppleNotesScanner())
         }
         return scanners
     }
