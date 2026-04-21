@@ -1,4 +1,7 @@
 import SwiftUI
+import Foundation
+import UniformTypeIdentifiers
+import AppKit
 import DevsecCore
 
 // MARK: - FullReportView
@@ -16,8 +19,18 @@ struct FullReportView: View {
 
             contentArea
         }
-        .frame(minWidth: 520, minHeight: 440)
-        .background(VisualEffectBackground())
+        .frame(
+            minWidth: 520,
+            idealWidth: 680,
+            maxWidth: .infinity,
+            minHeight: 440,
+            idealHeight: 640,
+            maxHeight: .infinity
+        )
+        // A standalone window should be opaque. the popover's hudWindow
+        // vibrancy only makes sense for a menu-attached panel. Here the content
+        // sits over arbitrary desktop windows and must stay readable.
+        .background(Color(NSColor.windowBackgroundColor))
     }
 
     // MARK: - Header
@@ -40,6 +53,10 @@ struct FullReportView: View {
 
             if let result = appState.lastScanResult {
                 summaryPills(result: result)
+            }
+
+            if let result = appState.lastScanResult, !result.findings.isEmpty {
+                exportMenu(result: result)
             }
 
             Button {
@@ -74,6 +91,67 @@ struct FullReportView: View {
             if result.newCount > 0 {
                 statPill(count: result.newCount, label: "New", color: .blue)
             }
+            if result.offloadedCount > 0 {
+                statPill(count: result.offloadedCount, label: "iCloud", color: .cyan)
+            }
+        }
+    }
+
+    /// Export menu with JSON / CSV options. Writes to a user-picked
+    /// location via NSSavePanel so we never surprise-drop files in the
+    /// home directory. Masked previews are preserved so nothing
+    /// sensitive leaves the app.
+    private func exportMenu(result: FullScanResult) -> some View {
+        Menu {
+            Button("Export as JSON") {
+                export(result: result, format: .json)
+            }
+            Button("Export as CSV") {
+                export(result: result, format: .csv)
+            }
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .frame(width: 24, height: 24)
+                .background(Color.primary.opacity(0.08))
+                .clipShape(Circle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Export findings")
+    }
+
+    private enum ExportFormat { case json, csv }
+
+    private func export(result: FullScanResult, format: ExportFormat) {
+        let panel = NSSavePanel()
+        panel.title = "Export damit findings"
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        switch format {
+        case .json:
+            panel.nameFieldStringValue = "damit-findings-\(stamp).json"
+            panel.allowedContentTypes = [.json]
+        case .csv:
+            panel.nameFieldStringValue = "damit-findings-\(stamp).csv"
+            panel.allowedContentTypes = [.commaSeparatedText]
+        }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            switch format {
+            case .json:
+                if let data = FindingExporter.exportJSON(result.findings) {
+                    try data.write(to: url, options: .atomic)
+                }
+            case .csv:
+                let csv = FindingExporter.exportCSV(result.findings)
+                try csv.data(using: .utf8)?.write(to: url, options: .atomic)
+            }
+        } catch {
+            NSAlert(error: error).runModal()
         }
     }
 
@@ -108,16 +186,87 @@ struct FullReportView: View {
     }
 
     private func findingsList(result: FullScanResult) -> some View {
-        ScrollView {
-            LazyVStack(spacing: 6) {
-                ForEach(result.findings) { finding in
-                    FindingDetailCard(finding: finding) {
-                        appState.whitelistFinding(finding)
-                    }
-                }
+        // Using List (not ScrollView+LazyVStack) for two reasons at scale:
+        //   1. List is natively lazy, so rendering hundreds of cards is fast.
+        //   2. List correctly measures variable-height rows, so we avoid the
+        //      "ghost gap" layout jitter LazyVStack produces when rows differ
+        //      in height (description/recommendation can wrap to multiple
+        //      lines).
+        List {
+            if result.offloadedCount > 0 {
+                offloadedBanner(count: result.offloadedCount)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
             }
-            .padding(12)
+            ForEach(result.findings) { finding in
+                FindingDetailCard(
+                    finding: finding,
+                    isAcknowledged: AcknowledgeStore.isAcknowledged(finding.id),
+                    onWhitelist: { appState.whitelistFinding(finding) },
+                    onToggleAcknowledge: {
+                        if AcknowledgeStore.isAcknowledged(finding.id) {
+                            appState.unacknowledgeFinding(finding)
+                        } else {
+                            appState.acknowledgeFinding(finding)
+                        }
+                    },
+                    onExcludeFolder: finding.filePath.map { path in
+                        { appState.excludeFolder(for: path) }
+                    },
+                    onAutoFix: AutoFix.canAutoFix(finding) ? {
+                        switch AutoFix.apply(finding) {
+                        case .applied(let desc):
+                            // Re-run scan so the fixed finding disappears.
+                            Task { await appState.runScan() }
+                            let a = NSAlert()
+                            a.messageText = "Fix applied"
+                            a.informativeText = desc
+                            a.runModal()
+                        case .failed(let msg):
+                            let a = NSAlert()
+                            a.alertStyle = .warning
+                            a.messageText = "Couldn't apply fix"
+                            a.informativeText = msg
+                            a.runModal()
+                        case .unsupported:
+                            break
+                        }
+                    } : nil
+                )
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 3, leading: 12, bottom: 3, trailing: 12))
+            }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
+
+    private func offloadedBanner(count: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "icloud.and.arrow.down")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.cyan)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(count) file\(count == 1 ? "" : "s") in iCloud were not scanned")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.primary)
+                Text("They will be checked on the next scan once macOS downloads them locally.")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.cyan.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.cyan.opacity(0.25), lineWidth: 0.5)
+        )
     }
 
     private var emptyState: some View {
@@ -159,9 +308,19 @@ struct FullReportView: View {
 
 private struct FindingDetailCard: View {
     let finding: Finding
+    let isAcknowledged: Bool
     let onWhitelist: () -> Void
+    let onToggleAcknowledge: () -> Void
+    let onExcludeFolder: (() -> Void)?
+    /// When non-nil, an "Apply fix" button appears. Invoked to run an
+    /// auto-remediation specific to the finding (e.g. `chmod 600` for
+    /// SSH key permission issues).
+    let onAutoFix: (() -> Void)?
 
     @State private var isHovered = false
+    @State private var excludeHovered = false
+    @State private var ackHovered = false
+    @State private var fixHovered = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -170,10 +329,10 @@ private struct FindingDetailCard: View {
                 HStack(spacing: 6) {
                     Text(finding.severity.rawValue.uppercased())
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(severityColor)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(severityColor.opacity(0.12)))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(severityColor))
 
                     Text(finding.module.rawValue)
                         .font(.system(size: 9))
@@ -190,14 +349,57 @@ private struct FindingDetailCard: View {
 
                     Spacer()
 
+                    if let onAutoFix {
+                        Button(action: onAutoFix) {
+                            Image(systemName: "wand.and.stars")
+                                .font(.system(size: 11))
+                                .foregroundColor(fixHovered ? .green : .green.opacity(0.85))
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in fixHovered = hovering }
+                        .help("Apply fix. runs the recommended action automatically")
+                    }
+
+                    if let onExcludeFolder {
+                        Button(action: onExcludeFolder) {
+                            Image(systemName: "folder.badge.minus")
+                                .font(.system(size: 11))
+                                .foregroundColor(excludeHovered ? .primary : .secondary.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in excludeHovered = hovering }
+                        .help("Exclude this folder from future scans")
+                    }
+
+                    // Acknowledge. keep the finding visible but stop it
+                    // from counting toward the menubar alert state. Useful
+                    // for things like shell history where you accept the
+                    // local risk but know it won't be committed.
+                    Button(action: onToggleAcknowledge) {
+                        Image(systemName: isAcknowledged ? "checkmark.seal.fill" : "checkmark.seal")
+                            .font(.system(size: 11))
+                            .foregroundColor(
+                                isAcknowledged
+                                    ? .green
+                                    : (ackHovered ? .primary : .secondary.opacity(0.6))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in ackHovered = hovering }
+                    .help(
+                        isAcknowledged
+                            ? "Acknowledged. click to un-acknowledge"
+                            : "Acknowledge. keep visible but stop alerting"
+                    )
+
                     Button(action: onWhitelist) {
-                        Image(systemName: "eye.slash")
+                        Image(systemName: "bell.slash")
                             .font(.system(size: 11))
                             .foregroundColor(isHovered ? .primary : .secondary.opacity(0.6))
                     }
                     .buttonStyle(.plain)
                     .onHover { hovering in isHovered = hovering }
-                    .help("Whitelist this finding")
+                    .help("Whitelist. hide this finding entirely")
                 }
 
                 // File path
@@ -263,6 +465,9 @@ private struct FindingDetailCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         )
+        // Fade acknowledged cards so they read as "known / accepted" but
+        // remain readable if you want to revisit them.
+        .opacity(isAcknowledged ? 0.55 : 1.0)
     }
 
     // MARK: - Helpers
